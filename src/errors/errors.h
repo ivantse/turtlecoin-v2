@@ -55,6 +55,10 @@ enum ErrorCode
     STAKING_CANDIDATE_NOT_FOUND,
     STAKING_STAKER_NOT_FOUND,
 
+    // AES error code(s)
+    AES_WRONG_PASSWORD,
+    AES_DECRYPTION_ERROR,
+
     /**
      * Do not change LMDB values as they map directly to LMDB return codes
      * See: http://www.lmdb.tech/doc/group__errors.html

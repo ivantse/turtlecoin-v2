@@ -4,7 +4,7 @@
 
 #include <address.h>
 #include <cli_helper.h>
-#include <crypto.h>
+#include <crypto_common.h>
 #include <logger.h>
 #include <utilities.h>
 

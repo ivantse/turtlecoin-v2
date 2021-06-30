@@ -5,7 +5,7 @@
 #ifndef TURTLECOIN_ZMQ_ROUTABLE_MSG_H
 #define TURTLECOIN_ZMQ_ROUTABLE_MSG_H
 
-#include <crypto.h>
+#include <crypto_types.h>
 #include <zmq.hpp>
 
 #define ZMQ_GETS(payload, property) std::string((payload).gets(property))

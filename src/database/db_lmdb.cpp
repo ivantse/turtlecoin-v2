@@ -6,6 +6,7 @@
 
 #include <cppfs/FileHandle.h>
 #include <cppfs/fs.h>
+#include <hashing.h>
 #include <utility>
 
 #define LMDB_SPACE_MULTIPLIER (1024 * 1024) // to MB

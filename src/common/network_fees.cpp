@@ -20,7 +20,8 @@ namespace Common::NetworkFees
         transaction_size -= Configuration::Transaction::Fees::BASE_CHUNK_SIZE;
 
         // calculate the number of chunks required and round up
-        const auto chunks = uint64_t(ceil(transaction_size / Configuration::Transaction::Fees::CHUNK_SIZE));
+        const auto chunks =
+            uint64_t(ceil(double(transaction_size) / double(Configuration::Transaction::Fees::CHUNK_SIZE)));
 
         // calculate the cost of the non-free chunks
         const auto chunk_cost = chunks * Configuration::Transaction::Fees::CHUNK_FEE;
@@ -82,7 +83,7 @@ namespace Common::NetworkFees
         const auto discount_percentage = calculate_transaction_discount(leading_zeros);
 
         // determine the resulting fee discount
-        const auto fee_discount = uint64_t(floor(base_transaction_fee * discount_percentage));
+        const auto fee_discount = uint64_t(floor(float(base_transaction_fee) * discount_percentage));
 
         // determine the discounted fee
         const auto discounted_fee = base_transaction_fee - fee_discount;

@@ -149,6 +149,7 @@ fabric.properties
 # build directories
 build/
 build2/
+build3/
 prebuilds/
 dist/
 build.js/

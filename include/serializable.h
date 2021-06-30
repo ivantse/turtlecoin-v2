@@ -5,7 +5,7 @@
 #ifndef TURTLECOIN_SERIALIZABLE_H
 #define TURTLECOIN_SERIALIZABLE_H
 
-#include <crypto.h>
+#include <crypto_types.h>
 
 namespace BaseTypes
 {

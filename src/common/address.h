@@ -5,7 +5,7 @@
 #ifndef COMMON_ADDRESS_H
 #define COMMON_ADDRESS_H
 
-#include <crypto.h>
+#include <crypto_types.h>
 #include <errors.h>
 
 namespace Common::Address

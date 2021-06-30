@@ -87,7 +87,7 @@ namespace P2P
         return m_database->del(peer_id);
     }
 
-    bool PeerDB::exists(const crypto_hash_t &peer_id)
+    bool PeerDB::exists(const crypto_hash_t &peer_id) const
     {
         std::scoped_lock lock(m_mutex);
 

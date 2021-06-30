@@ -219,7 +219,7 @@ namespace P2P
         // we don't talk to peers that are not speaking at least the minimum version
         if (packet.version < Configuration::P2P::MINIMUM_VERSION)
         {
-            return;
+            throw std::runtime_error("Peer is running the wrong version of the P2P stack");
         }
 
         if (packet.peers.size() > Configuration::P2P::MAXIMUM_PEERS_EXCHANGED)
@@ -227,8 +227,6 @@ namespace P2P
             throw std::runtime_error(
                 "Handshake contains more than the maximum number of peers accepted, protocol violation.");
         }
-
-        std::cout << is_server << "\t" << packet << std::endl;
 
         {
             network_peer_t peer(ip_address_t(peer_address), packet.peer_id, packet.peer_port);
@@ -284,10 +282,11 @@ namespace P2P
         // we don't talk to peers that are not speaking at least the minimum version
         if (packet.version < Configuration::P2P::MINIMUM_VERSION)
         {
-            return;
+            throw std::runtime_error("Peer is running the wrong version of the P2P stack");
         }
 
-        std::cout << is_server << "\t" << from << std::endl << packet << std::endl;
+        // add the message to the stack for processing
+        m_messages.push(network_msg_t(from, packet));
     }
 
     void Node::handle_packet(
@@ -317,10 +316,8 @@ namespace P2P
         // we don't talk to peers that are not speaking at least the minimum version
         if (packet.version < Configuration::P2P::MINIMUM_VERSION)
         {
-            return;
+            throw std::runtime_error("Peer is running the wrong version of the P2P stack");
         }
-
-        std::cout << is_server << "\t" << packet << std::endl;
 
         packet_keepalive_t reply_keepalive(m_peer_db->peer_id());
 
@@ -351,10 +348,8 @@ namespace P2P
         // we don't talk to peers that are not speaking at least the minimum version
         if (packet.version < Configuration::P2P::MINIMUM_VERSION)
         {
-            return;
+            throw std::runtime_error("Peer is running the wrong version of the P2P stack");
         }
-
-        std::cout << is_server << "\t" << packet << std::endl;
 
         {
             network_peer_t peer(ip_address_t(peer_address), packet.peer_id, packet.peer_port);
@@ -387,6 +382,11 @@ namespace P2P
     size_t Node::incoming_connections() const
     {
         return m_server->connections();
+    }
+
+    ThreadSafeQueue<network_msg_t> &Node::messages()
+    {
+        return m_messages;
     }
 
     size_t Node::outgoing_connections() const
@@ -437,6 +437,11 @@ namespace P2P
         m_server->send(message);
     }
 
+    void Node::reply(const crypto_hash_t &to, const packet_data_t &packet)
+    {
+        m_server->send(zmq_message_envelope_t(to, packet.serialize()));
+    }
+
     bool Node::running() const
     {
         return m_running;
@@ -448,6 +453,11 @@ namespace P2P
         {
             client->send(message);
         }
+    }
+
+    void Node::send(const packet_data_t &packet)
+    {
+        send(zmq_message_envelope_t(packet.serialize()));
     }
 
     void Node::send_keepalives()

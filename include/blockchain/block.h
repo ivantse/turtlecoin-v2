@@ -10,6 +10,7 @@
 #include "transaction_staker_reward.h"
 
 #include <map>
+#include <signature.h>
 
 namespace Types::Blockchain
 {

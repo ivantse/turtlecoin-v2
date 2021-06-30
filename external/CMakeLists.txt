@@ -11,6 +11,7 @@ set(BUILD_TEST OFF CACHE BOOL "Build external test")
 
 add_subdirectory(cppfs)
 add_subdirectory(crypto)
+add_subdirectory(cryptopp)
 add_subdirectory(cxxfolders)
 add_subdirectory(ipv6-parse)
 add_subdirectory(lmdb)
@@ -21,25 +22,30 @@ add_subdirectory(spdlog)
 target_include_directories(ipv6-parser PUBLIC ipv6-parse/include)
 target_include_directories(libminiupnpc-static PUBLIC miniupnp/miniupnpc)
 
-set_property(TARGET cppfs PROPERTY FOLDER "external")
-set_property(TARGET crypto-static PROPERTY FOLDER "external")
-set_property(TARGET ipv6-parser PROPERTY FOLDER "external")
-set_property(TARGET platform_folders PROPERTY FOLDER "external")
-set_property(TARGET lmdb PROPERTY FOLDER "external")
-set_property(TARGET libzmq-static PROPERTY FOLDER "external")
-set_property(TARGET libminiupnpc-static PROPERTY FOLDER "external")
-set_property(TARGET spdlog PROPERTY FOLDER "external")
+set_property(TARGET
+    cppfs
+    crypto-static
+    cryptopp-static
+    ipv6-parser
+    platform_folders
+    lmdb
+    libzmq-static
+    libminiupnpc-static
+    spdlog
+    PROPERTY FOLDER "external"
+)
 
 # this bundles up all external dependencies into a single target for linking elsewhere
 add_library(External INTERFACE)
 target_link_libraries(External INTERFACE
-    lmdb
     cppfs
+    crypto-static
+    cryptopp-static
     ipv6-parser
     platform_folders
+    lmdb
     libzmq-static
     libminiupnpc-static
-    crypto-static
     spdlog
 )
 if(WIN32)

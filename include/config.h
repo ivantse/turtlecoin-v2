@@ -5,7 +5,7 @@
 #ifndef TURTLECOIN_CONFIG_H
 #define TURTLECOIN_CONFIG_H
 
-#include <crypto.h>
+#include <crypto_types.h>
 #include <cstdint>
 
 struct SeedNode
@@ -153,6 +153,12 @@ namespace Configuration
          * Defines the default wallet bind port for listening for HTTP requests
          */
         const uint16_t DEFAULT_WALLET_BIND_PORT = 18070;
+
+        /**
+         * Defines the default number of PBKDF2 iterations performed during
+         * password/key stretching
+         */
+        const size_t PBKDF2_ITERATIONS = 10'000;
     } // namespace API
 
     namespace Consensus
@@ -196,6 +202,15 @@ namespace Configuration
         const uint64_t STAKE_RECORD_VERSION = 1;
     } // namespace Staking
 
+    namespace Wallet
+    {
+        /**
+         * Defines the default number of PBKDF2 iterations performed during
+         * password/key stretching
+         */
+        const size_t PBKDF2_ITERATIONS = 500'000;
+    } // namespace Wallet
+
     namespace Transaction
     {
         /**
@@ -237,12 +252,12 @@ namespace Configuration
             /**
              * How large, in bytes, each chunk of data is
              */
-            const uint64_t CHUNK_SIZE = 64;
+            const uint64_t CHUNK_SIZE = 32;
 
             /**
              * This allows for a minimal transaction to pass with the MINIMUM_FEE
              */
-            const uint64_t BASE_CHUNK_SIZE = CHUNK_SIZE * 4;
+            const uint64_t BASE_CHUNK_SIZE = CHUNK_SIZE * 10;
 
             /**
              * This is the amount added for each CHUNK over the BASE_CHUNK_SIZE

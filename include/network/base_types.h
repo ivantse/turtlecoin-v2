@@ -7,7 +7,7 @@
 
 #include "ip_address.h"
 
-#include <crypto.h>
+#include <crypto_types.h>
 #include <serializable.h>
 #include <time.h>
 

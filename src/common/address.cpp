@@ -4,6 +4,7 @@
 
 #include "address.h"
 
+#include <cn_base58.h>
 #include <config.h>
 
 namespace Common::Address

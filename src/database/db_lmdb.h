@@ -5,7 +5,7 @@
 #ifndef DATABASE_LMDB_H
 #define DATABASE_LMDB_H
 
-#include <crypto.h>
+#include <crypto_types.h>
 #include <errors.h>
 #include <lmdb.h>
 #include <map>

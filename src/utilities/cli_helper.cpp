@@ -85,7 +85,7 @@ namespace Utilities
 
     std::string CLIHelper::get_home_directory()
     {
-        return cxxfolders::getDataHome();
+        return cxxfolders::getUserAppData();
     }
 
     std::string CLIHelper::get_version()

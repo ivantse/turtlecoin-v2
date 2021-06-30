@@ -6,7 +6,7 @@
 #define TURTLECOIN_CANDIDATE_H
 
 #include <config.h>
-#include <crypto.h>
+#include <crypto_types.h>
 #include <serializable.h>
 
 namespace Types::Staking

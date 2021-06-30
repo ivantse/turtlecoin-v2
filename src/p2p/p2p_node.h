@@ -15,6 +15,18 @@
 
 namespace P2P
 {
+    struct network_msg_t
+    {
+        network_msg_t(const crypto_hash_t &from, Types::Network::packet_data_t packet):
+            from(from), packet(std::move(packet))
+        {
+        }
+
+        crypto_hash_t from;
+
+        Types::Network::packet_data_t packet;
+    };
+
     class Node
     {
       public:
@@ -36,6 +48,13 @@ namespace P2P
          * @return
          */
         size_t incoming_connections() const;
+
+        /**
+         * Returns the current queue of network messages to be processed
+         *
+         * @return
+         */
+        ThreadSafeQueue<network_msg_t> &messages();
 
         /**
          * Returns the number of outgoing connections
@@ -68,6 +87,14 @@ namespace P2P
         void reply(const zmq_message_envelope_t &message);
 
         /**
+         * Replies via the server to the specified client with the data packet specified
+         *
+         * @param to
+         * @param packet
+         */
+        void reply(const crypto_hash_t &to, const packet_data_t &packet);
+
+        /**
          * Returns if the P2P network node is running
          *
          * @return
@@ -80,6 +107,13 @@ namespace P2P
          * @param message
          */
         void send(const zmq_message_envelope_t &message);
+
+        /**
+         * Sends the given data package out to all of the connected network peers
+         *
+         * @param packet
+         */
+        void send(const packet_data_t &packet);
 
         /**
          * Starts the P2P network node
@@ -206,6 +240,8 @@ namespace P2P
         ThreadSafeMap<crypto_hash_t, std::shared_ptr<Networking::ZMQClient>> m_clients;
 
         ThreadSafeSet<crypto_hash_t> m_completed_handshake;
+
+        ThreadSafeQueue<network_msg_t> m_messages;
 
         std::thread m_poller_thread, m_keepalive_thread, m_peer_exchange_thread, m_connection_manager_thread;
 

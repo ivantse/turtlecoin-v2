@@ -7,8 +7,9 @@
 
 #include <atomic>
 #include <condition_variable>
-#include <crypto.h>
+#include <crypto_common.h>
 #include <errors.h>
+#include <hashing.h>
 #include <iostream>
 #include <logger.h>
 #include <mutex>

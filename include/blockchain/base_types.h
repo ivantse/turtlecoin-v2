@@ -9,7 +9,9 @@
 
 #include "config.h"
 
-#include <crypto.h>
+#include <bulletproofsplus.h>
+#include <crypto_types.h>
+#include <ring_signature_clsag.h>
 #include <serializable.h>
 
 namespace BaseTypes

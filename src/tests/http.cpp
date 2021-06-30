@@ -6,6 +6,7 @@
 #include <console.h>
 #include <http_client.h>
 #include <http_server.h>
+#include <ring_signature_clsag.h>
 
 using namespace Utilities;
 using namespace Networking;

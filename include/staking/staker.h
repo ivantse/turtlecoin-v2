@@ -5,7 +5,7 @@
 #ifndef TURTLECOIN_STAKER_H
 #define TURTLECOIN_STAKER_H
 
-#include <crypto.h>
+#include <crypto_types.h>
 
 namespace Types::Staking
 {

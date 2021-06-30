@@ -5,7 +5,7 @@
 #ifndef TURTLECOIN_P2P_DATABASE_H
 #define TURTLECOIN_P2P_DATABASE_H
 
-#include <crypto.h>
+#include <crypto_types.h>
 #include <db_lmdb.h>
 #include <logger.h>
 #include <types.h>
@@ -56,7 +56,7 @@ namespace P2P
          * @param peer_id
          * @return
          */
-        bool exists(const crypto_hash_t &peer_id);
+        bool exists(const crypto_hash_t &peer_id) const;
 
         /**
          * Retrieve the given peer entry for the specified peer ID
