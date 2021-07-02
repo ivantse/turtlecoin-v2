@@ -81,7 +81,7 @@ int main(int argc, char **argv)
                 {"Outgoing Connections", std::to_string(server->outgoing_connections())},
                 {"Known Peers", std::to_string(server->peers()->count())}};
 
-            Utilities::print_table(rows);
+            Utilities::print_table(rows, true);
         });
 
     console->register_command(

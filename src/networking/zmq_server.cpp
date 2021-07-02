@@ -88,7 +88,7 @@ namespace Networking
             if (!m_running)
             {
                 m_upnp_helper = std::make_unique<UPNP>(
-                    m_logger, m_bind_port, Configuration::Version::PROJECT_NAME + ": 0MQ Server");
+                    m_logger, m_bind_port, Configuration::Version::PROJECT_NAME + ": ZMQ Server");
 
                 m_running = true;
 

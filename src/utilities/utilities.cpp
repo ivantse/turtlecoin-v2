@@ -75,7 +75,7 @@ namespace Utilities
             const auto &[left, middle, right] = rows.front();
 
             std::cout << COLOR::white << "| " << COLOR::yellow << str_pad(left, long_left) << COLOR::white << " | "
-                      << COLOR::green << str_pad(middle, long_middle) << COLOR::white << " | " << COLOR::green
+                      << COLOR::green << str_pad(middle, long_middle) << COLOR::white << " | " << COLOR::cyan
                       << str_pad(right, long_right) << COLOR::white << " |" << std::endl;
 
             std::cout << COLOR::white << std::string(total_width, '=') << COLOR::reset << std::endl;
@@ -86,7 +86,7 @@ namespace Utilities
         for (const auto &[left, middle, right] : rows)
         {
             std::cout << COLOR::white << "| " << COLOR::yellow << str_pad(left, long_left) << COLOR::white << " | "
-                      << COLOR::green << str_pad(middle, long_middle) << COLOR::white << " | " << COLOR::green
+                      << COLOR::green << str_pad(middle, long_middle) << COLOR::white << " | " << COLOR::cyan
                       << str_pad(right, long_right) << COLOR::white << " |" << std::endl;
         }
 
