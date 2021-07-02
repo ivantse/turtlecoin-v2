@@ -15,6 +15,8 @@ endif()
 set(CMAKE_CONFIGURATION_TYPES Debug RelWithDebInfo Release CACHE STRING INTERNAL)
 set(ARCH native CACHE STRING "CPU to build for: -march value or native")
 
+message(STATUS "Building for target architecture: ${ARCH}")
+
 set(LIB_MAJOR_VERSION "2")
 set(LIB_MINOR_VERSION "0")
 set(LIB_PATCH_VERSION "0")
@@ -103,11 +105,14 @@ if(NOT MSVC)
         set(MAES_FLAG "")
     endif ()
 
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -O3 -Wuninitialized ${MAES_FLAG}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -O3 -Wuninitialized ${MAES_FLAG}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Wuninitialized ${MAES_FLAG}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wuninitialized ${MAES_FLAG}")
 
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG -s")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG -s")
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g3 -Og")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -Og")
+
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG -s -O3")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG -s -O3")
 
     if (APPLE)
         if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
