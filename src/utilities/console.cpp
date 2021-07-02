@@ -40,6 +40,10 @@ namespace Utilities
     {
         std::vector<std::tuple<std::string, std::string>> options;
 
+        options.reserve(m_commands.size() + 3);
+
+        options.emplace_back("Command", "Description");
+
         for (const auto &[command, option] : m_commands)
         {
             options.emplace_back(command, option.description);
@@ -51,7 +55,7 @@ namespace Utilities
 
         std::cout << std::endl << COLOR::white << m_name << " Help Menu" << COLOR::reset << std::endl;
 
-        Utilities::print_table(options);
+        Utilities::print_table(options, true);
     }
 
     size_t ConsoleHandler::maximum_command_length()

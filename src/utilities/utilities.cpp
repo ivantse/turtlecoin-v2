@@ -13,7 +13,7 @@
 
 namespace Utilities
 {
-    void print_table(const std::vector<std::tuple<std::string, std::string>> &rows)
+    void print_table(std::vector<std::tuple<std::string, std::string>> rows, bool has_header)
     {
         size_t long_left = 0, long_right = 0;
 
@@ -30,10 +30,64 @@ namespace Utilities
 
         std::cout << COLOR::white << std::string(total_width, '=') << COLOR::reset << std::endl;
 
+        if (has_header)
+        {
+            const auto &[left, right] = rows.front();
+
+            std::cout << COLOR::white << "| " << COLOR::yellow << str_pad(left, long_left) << COLOR::white << " | "
+                      << COLOR::green << str_pad(right, long_right) << COLOR::white << " |" << std::endl;
+
+            std::cout << COLOR::white << std::string(total_width, '=') << COLOR::reset << std::endl;
+
+            rows.erase(rows.begin());
+        }
+
         for (const auto &[left, right] : rows)
         {
             std::cout << COLOR::white << "| " << COLOR::yellow << str_pad(left, long_left) << COLOR::white << " | "
                       << COLOR::green << str_pad(right, long_right) << COLOR::white << " |" << std::endl;
+        }
+
+        std::cout << COLOR::white << std::string(total_width, '=') << COLOR::reset << std::endl << std::endl;
+    }
+
+    void print_table(std::vector<std::tuple<std::string, std::string, std::string>> rows, bool has_header)
+    {
+        size_t long_left = 0, long_middle = 0, long_right = 0;
+
+        for (const auto &[left, middle, right] : rows)
+        {
+            long_left = std::max(long_left, left.length());
+
+            long_middle = std::max(long_middle, middle.length());
+
+            long_right = std::max(long_right, right.length());
+        }
+
+        size_t total_width = long_left + long_middle + long_right + 10;
+
+        std::stringstream ss;
+
+        std::cout << COLOR::white << std::string(total_width, '=') << COLOR::reset << std::endl;
+
+        if (has_header)
+        {
+            const auto &[left, middle, right] = rows.front();
+
+            std::cout << COLOR::white << "| " << COLOR::yellow << str_pad(left, long_left) << COLOR::white << " | "
+                      << COLOR::green << str_pad(middle, long_middle) << COLOR::white << " | " << COLOR::green
+                      << str_pad(right, long_right) << COLOR::white << " |" << std::endl;
+
+            std::cout << COLOR::white << std::string(total_width, '=') << COLOR::reset << std::endl;
+
+            rows.erase(rows.begin());
+        }
+
+        for (const auto &[left, middle, right] : rows)
+        {
+            std::cout << COLOR::white << "| " << COLOR::yellow << str_pad(left, long_left) << COLOR::white << " | "
+                      << COLOR::green << str_pad(middle, long_middle) << COLOR::white << " | " << COLOR::green
+                      << str_pad(right, long_right) << COLOR::white << " |" << std::endl;
         }
 
         std::cout << COLOR::white << std::string(total_width, '=') << COLOR::reset << std::endl << std::endl;

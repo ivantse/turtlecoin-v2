@@ -12,9 +12,19 @@ namespace Utilities
 {
     /**
      * Prints the given tuple of left/right columns as a table
+     *
      * @param rows
+     * @param has_header
      */
-    void print_table(const std::vector<std::tuple<std::string, std::string>> &rows);
+    void print_table(std::vector<std::tuple<std::string, std::string>> rows, bool has_header = false);
+
+    /**
+     * Prints the given tuple of left/middle/right columns as a table
+     *
+     * @param rows
+     * @param has_header
+     */
+    void print_table(std::vector<std::tuple<std::string, std::string, std::string>> rows, bool has_header = false);
 
     /**
      * Joins a vector of strings together using the specified character as the delimiter
