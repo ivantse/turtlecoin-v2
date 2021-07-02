@@ -54,18 +54,6 @@ template<typename T> class ThreadSafeDeque
     }
 
     /**
-     * returns an iterator to the beginning
-     *
-     * @return
-     */
-    auto begin() const
-    {
-        std::scoped_lock lock(m_mutex);
-
-        return m_container.begin();
-    }
-
-    /**
      * Removes all elements from the queue
      */
     void clear()
@@ -73,6 +61,38 @@ template<typename T> class ThreadSafeDeque
         std::scoped_lock lock(m_mutex);
 
         m_container.clear();
+    }
+
+    /**
+     * loops over the the container and executes the provided function
+     * using each element
+     *
+     * @param func
+     */
+    void each(const std::function<void(const T &)> &func)
+    {
+        std::scoped_lock lock(m_mutex);
+
+        for (const auto &elem : m_container)
+        {
+            func(elem);
+        }
+    }
+
+    /**
+     * loops over the the container and executes the provided function
+     * using each element (without const)
+     *
+     * @param func
+     */
+    void eachref(const std::function<void(T &)> &func)
+    {
+        std::scoped_lock lock(m_mutex);
+
+        for (auto &elem : m_container)
+        {
+            func(elem);
+        }
     }
 
     /**
@@ -85,18 +105,6 @@ template<typename T> class ThreadSafeDeque
         std::scoped_lock lock(m_mutex);
 
         return m_container.empty();
-    }
-
-    /**
-     * returns an iterator to the end
-     *
-     * @return
-     */
-    auto end() const
-    {
-        std::scoped_lock lock(m_mutex);
-
-        return m_container.end();
     }
 
     /**
@@ -217,30 +225,6 @@ template<typename T> class ThreadSafeDeque
         {
             m_container.push_front(item);
         }
-    }
-
-    /**
-     * returns a reverse iterator to the beginning
-     *
-     * @return
-     */
-    auto rbegin() const
-    {
-        std::scoped_lock lock(m_mutex);
-
-        return m_container.rbegin();
-    }
-
-    /**
-     * returns a reverse iterator to the end
-     *
-     * @return
-     */
-    auto rend() const
-    {
-        std::scoped_lock lock(m_mutex);
-
-        return m_container.rend();
     }
 
     /**

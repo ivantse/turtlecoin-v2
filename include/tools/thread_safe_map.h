@@ -28,18 +28,6 @@ template<typename L, typename R> class ThreadSafeMap
     }
 
     /**
-     * returns an iterator to the beginning
-     *
-     * @return
-     */
-    auto begin() const
-    {
-        std::scoped_lock lock(m_mutex);
-
-        return m_container.begin();
-    }
-
-    /**
      * Removes all elements from the container
      */
     void clear()
@@ -63,6 +51,38 @@ template<typename L, typename R> class ThreadSafeMap
     }
 
     /**
+     * loops over the the container and executes the provided function
+     * using each element
+     *
+     * @param func
+     */
+    void each(const std::function<void(const L &, const R &)> &func)
+    {
+        std::scoped_lock lock(m_mutex);
+
+        for (const auto &[key, value] : m_container)
+        {
+            func(key, value);
+        }
+    }
+
+    /**
+     * loops over the the container and executes the provided function
+     * using each element (without const)
+     *
+     * @param func
+     */
+    void eachref(const std::function<void(L &, R &)> &func)
+    {
+        std::scoped_lock lock(m_mutex);
+
+        for (auto &[key, value] : m_container)
+        {
+            func(key, value);
+        }
+    }
+
+    /**
      * Returns whether the container is empty
      *
      * @return
@@ -72,18 +92,6 @@ template<typename L, typename R> class ThreadSafeMap
         std::scoped_lock lock(m_mutex);
 
         return m_container.empty();
-    }
-
-    /**
-     * returns an iterator to the end
-     *
-     * @return
-     */
-    auto end() const
-    {
-        std::scoped_lock lock(m_mutex);
-
-        return m_container.end();
     }
 
     /**
@@ -173,30 +181,6 @@ template<typename L, typename R> class ThreadSafeMap
         std::scoped_lock lock(m_mutex);
 
         return m_container.max_size();
-    }
-
-    /**
-     * returns a reverse iterator to the beginning
-     *
-     * @return
-     */
-    auto rbegin() const
-    {
-        std::scoped_lock lock(m_mutex);
-
-        return m_container.rbegin();
-    }
-
-    /**
-     * returns a reverse iterator to the end
-     *
-     * @return
-     */
-    auto rend() const
-    {
-        std::scoped_lock lock(m_mutex);
-
-        return m_container.rend();
     }
 
     /**

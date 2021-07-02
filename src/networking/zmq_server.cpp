@@ -219,28 +219,29 @@ namespace Networking
                 // messages without a destination are BROADCAST messages
                 if (message.to.empty())
                 {
-                    for (const auto &to : m_connections)
-                    {
-                        try
+                    m_connections.each(
+                        [&](const auto &to)
                         {
-                            message.to = to;
+                            try
+                            {
+                                message.to = to;
 
-                            std::scoped_lock socket_lock(m_socket_mutex);
+                                std::scoped_lock socket_lock(m_socket_mutex);
 
-                            m_socket.send(message.to_msg(), zmq::send_flags::sndmore);
+                                m_socket.send(message.to_msg(), zmq::send_flags::sndmore);
 
-                            m_socket.send(message.payload_msg(), zmq::send_flags::dontwait);
+                                m_socket.send(message.payload_msg(), zmq::send_flags::dontwait);
 
-                            m_logger->trace(
-                                "Message sent to {0}: {1}",
-                                message.to.to_string(),
-                                Crypto::StringTools::to_hex(message.payload.data(), message.payload.size()));
-                        }
-                        catch (const zmq::error_t &e)
-                        {
-                            del_connection(to);
-                        }
-                    }
+                                m_logger->trace(
+                                    "Message sent to {0}: {1}",
+                                    message.to.to_string(),
+                                    Crypto::StringTools::to_hex(message.payload.data(), message.payload.size()));
+                            }
+                            catch (const zmq::error_t &e)
+                            {
+                                del_connection(to);
+                            }
+                        });
                 }
                 else // otherwise, we have a specific destination in mind
                 {

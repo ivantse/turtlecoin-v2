@@ -17,10 +17,12 @@ namespace P2P
 {
     struct network_msg_t
     {
-        network_msg_t(const crypto_hash_t &from, Types::Network::packet_data_t packet):
-            from(from), packet(std::move(packet))
+        network_msg_t(const crypto_hash_t &from, Types::Network::packet_data_t packet, bool is_server):
+            from(from), packet(std::move(packet)), is_server(is_server)
         {
         }
+
+        bool is_server = false;
 
         crypto_hash_t from;
 
@@ -158,7 +160,7 @@ namespace P2P
          * @param message
          * @param is_server
          */
-        void handle_incoming_message(const zmq_message_envelope_t &message, bool is_server = false);
+        void handle_incoming_message(const zmq_message_envelope_t &message, bool is_server);
 
         /**
          * Handles the handshake packet

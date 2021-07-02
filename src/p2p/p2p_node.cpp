@@ -126,14 +126,22 @@ namespace P2P
         {
             // check to see if any of our clients are disconnected, and if so, remove em
             {
-                for (const auto &[id, client] : m_clients)
-                {
-                    if (!client->connected())
-                    {
-                        m_logger->trace("Client {0} is no longer connected, destroying...", id.to_string());
+                std::vector<crypto_hash_t> to_delete;
 
-                        m_clients.erase(id);
-                    }
+                m_clients.each(
+                    [&](const auto &id, const auto &client)
+                    {
+                        if (!client->connected())
+                        {
+                            m_logger->trace("Client {0} is no longer connected, destroying...", id.to_string());
+
+                            to_delete.push_back(id);
+                        }
+                    });
+
+                for (const auto &id : to_delete)
+                {
+                    m_clients.erase(id);
                 }
             }
 
@@ -286,7 +294,7 @@ namespace P2P
         }
 
         // add the message to the stack for processing
-        m_messages.push(network_msg_t(from, packet));
+        m_messages.push(network_msg_t(from, packet, is_server));
     }
 
     void Node::handle_packet(
@@ -415,15 +423,16 @@ namespace P2P
                 handle_incoming_message(message, true);
             }
 
-            for (const auto &[id, client] : m_clients)
-            {
-                if (!client->messages().empty())
+            m_clients.each(
+                [&](const auto &id, const auto &client)
                 {
-                    const auto message = client->messages().pop();
+                    if (!client->messages().empty())
+                    {
+                        const auto message = client->messages().pop();
 
-                    handle_incoming_message(message);
-                }
-            }
+                        handle_incoming_message(message, false);
+                    }
+                });
 
             if (thread_sleep(m_stopping))
             {
@@ -449,10 +458,7 @@ namespace P2P
 
     void Node::send(const zmq_message_envelope_t &message)
     {
-        for (const auto &[id, client] : m_clients)
-        {
-            client->send(message);
-        }
+        m_clients.each([&](const auto &id, const auto &client) { client->send(message); });
     }
 
     void Node::send(const packet_data_t &packet)
