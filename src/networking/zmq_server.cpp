@@ -45,16 +45,16 @@ namespace Networking
         if (m_thread_outgoing.joinable())
         {
             m_thread_outgoing.join();
-        }
 
-        m_logger->trace("ZMQ Server outgoing thread shut down successfully");
+            m_logger->trace("ZMQ Server outgoing thread shut down successfully");
+        }
 
         if (m_thread_incoming.joinable())
         {
             m_thread_incoming.join();
-        }
 
-        m_logger->trace("ZMQ Server incoming thread shut down successfully");
+            m_logger->trace("ZMQ Server incoming thread shut down successfully");
+        }
 
         m_upnp_helper.reset();
 

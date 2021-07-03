@@ -95,31 +95,6 @@ namespace Core
         [[nodiscard]] std::tuple<Error, uint64_t> get_block_index(const crypto_hash_t &block_hash) const;
 
         /**
-         * Retrieves the maximum transaction output global index from the database
-         *
-         * @return
-         */
-        [[nodiscard]] std::tuple<Error, uint64_t> get_maximum_global_index() const;
-
-        /**
-         * Retrieves the transaction output for the specified global index
-         *
-         * @param global_index
-         * @return
-         */
-        [[nodiscard]] std::tuple<Error, Types::Blockchain::transaction_output_t>
-            get_output_by_global_index(const uint64_t &global_index) const;
-
-        /**
-         * Retrieve the transaction outputs for the specified global indexes
-         *
-         * @param global_indexes
-         * @return
-         */
-        [[nodiscard]] std::tuple<Error, std::map<uint64_t, Types::Blockchain::transaction_output_t>>
-            get_outputs_by_global_indexes(const std::vector<uint64_t> &global_indexes) const;
-
-        /**
          * Retrieves the transaction with the specified hash
          *
          * @param txn_hash
@@ -129,13 +104,25 @@ namespace Core
             get_transaction(const crypto_hash_t &txn_hash) const;
 
         /**
-         * Retrieves the global indexes for the transaction with the specified hash
+         * Retrieves the transaction output by its hash
          *
-         * @param txn_hash
+         * @param output_hash
          * @return
          */
-        [[nodiscard]] std::tuple<Error, std::vector<uint64_t>>
-            get_transaction_indexes(const crypto_hash_t &txn_hash) const;
+        [[nodiscard]] std::tuple<Error, Types::Blockchain::transaction_output_t>
+            get_transaction_output(const crypto_hash_t &output_hash) const;
+
+        /**
+         * Retrieves the transaction outputs by their hashes
+         *
+         * If any output cannot be found, the entire routine errors and returns with
+         * not results
+         *
+         * @param output_hashes
+         * @return
+         */
+        [[nodiscard]] std::tuple<Error, std::vector<Types::Blockchain::transaction_output_t>>
+            get_transaction_outputs(const std::vector<crypto_hash_t> &output_hashes) const;
 
         /**
          * Checks if the specified key image exists in the database
@@ -200,35 +187,20 @@ namespace Core
             const crypto_hash_t &block_hash);
 
         /**
-         * Saves the specified transaction indexes to the database
-         *
-         * @param db_tx
-         * @param tx_hash
-         * @param indexes
-         * @return
-         */
-        Error put_transaction_indexes(
-            std::unique_ptr<Database::LMDBTransaction> &db_tx,
-            const crypto_hash_t &tx_hash,
-            const std::vector<uint64_t> &indexes);
-
-        /**
          * Saves the specified transaction output to the database
          *
          * @param db_tx
-         * @param index
          * @param output
          * @return
          */
-        std::tuple<Error, uint64_t> put_transaction_output(
+        Error put_transaction_output(
             std::unique_ptr<Database::LMDBTransaction> &db_tx,
-            const uint64_t &index,
             const Types::Blockchain::transaction_output_t &output);
 
         std::shared_ptr<Database::LMDB> m_db_env;
 
         std::shared_ptr<Database::LMDBDatabase> m_blocks, m_block_indexes, m_block_timestamps, m_transactions,
-            m_key_images, m_global_indexes, m_transaction_indexes, m_transaction_block_hashes;
+            m_key_images, m_transaction_block_hashes, m_transaction_outputs;
 
         std::mutex write_mutex;
     };

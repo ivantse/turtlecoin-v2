@@ -137,6 +137,8 @@ namespace Utilities
             // if the user typed one of these values, we're trying to stop execution
             if (command == "exit" || command == "quit")
             {
+                m_break = true;
+
                 std::cout << std::endl
                           << COLOR::yellow << "Attempting graceful exit..." << COLOR::reset << std::endl
                           << std::endl;
@@ -171,6 +173,11 @@ namespace Utilities
                     },
                     m_commands.at(command).callback);
             }
+            else
+            {
+                std::cout << COLOR::red << "Command not found. Please check the spelling and try again." << COLOR::reset
+                          << std::endl;
+            }
         }
     }
 
@@ -181,7 +188,7 @@ namespace Utilities
     {
         Utilities::str_trim(command, true);
 
-        if (command.empty())
+        if (command.empty() || command == "exit" || command == "quit")
         {
             return;
         }

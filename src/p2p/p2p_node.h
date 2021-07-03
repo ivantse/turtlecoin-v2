@@ -247,7 +247,7 @@ namespace P2P
 
         ThreadSafeMap<crypto_hash_t, std::shared_ptr<Networking::ZMQClient>> m_clients;
 
-        ThreadSafeSet<crypto_hash_t> m_completed_handshake;
+        ThreadSafeSet<crypto_hash_t> m_completed_handshake, m_connected_peerids;
 
         ThreadSafeQueue<network_msg_t> m_messages;
 

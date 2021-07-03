@@ -58,9 +58,9 @@ namespace Networking
         if (m_thread_incoming.joinable())
         {
             m_thread_incoming.join();
-        }
 
-        m_logger->trace("ZMQ Subscriber incoming thread shut down successfully");
+            m_logger->trace("ZMQ Subscriber incoming thread shut down successfully");
+        }
 
         std::unique_lock lock(m_socket_mutex);
 

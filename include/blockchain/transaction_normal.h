@@ -452,17 +452,11 @@ namespace std
         os << "\tTx Extra: " << Crypto::StringTools::to_hex(value.tx_extra.data(), value.tx_extra.size()) << std::endl
            << std::endl;
 
-        os << "\tInput Offsets:" << std::endl;
-        for (size_t i = 0; i < value.offsets.size(); ++i)
+        os << "\tRing Participants:" << std::endl;
+        for (const auto &elem : value.ring_participants)
         {
-            if (i == 0)
-                os << "\t\t";
-            else if (i % 8 == 0)
-                os << std::endl << "\t\t";
-
-            os << value.offsets[i] << ", ";
+            os << "\t\t" << elem << std::endl;
         }
-        os << std::endl;
 
         for (const auto &signature : value.signatures)
         {

@@ -22,9 +22,7 @@ namespace Core
 
         m_key_images = m_db_env->open_database("key_images");
 
-        m_global_indexes = m_db_env->open_database("global_indexes");
-
-        m_transaction_indexes = m_db_env->open_database("transaction_indexes");
+        m_transaction_outputs = m_db_env->open_database("transaction_outputs");
 
         m_transaction_block_hashes = m_db_env->open_database("transaction_block_hashes");
     }
@@ -142,66 +140,6 @@ namespace Core
         return {error, block.block_index};
     }
 
-    std::tuple<Error, uint64_t> BlockchainStorage::get_maximum_global_index() const
-    {
-        const auto count = m_global_indexes->count();
-
-        if (count == 0)
-        {
-            return {MAKE_ERROR(DB_EMPTY), 0};
-        }
-
-        return {MAKE_ERROR(SUCCESS), count - 1};
-    }
-
-    std::tuple<Error, Types::Blockchain::transaction_output_t>
-        BlockchainStorage::get_output_by_global_index(const uint64_t &global_index) const
-    {
-        // go get the maximum global index number
-        const auto [error, maximum_global_index] = get_maximum_global_index();
-
-        if (error)
-        {
-            return {error, {}};
-        }
-
-        if (global_index > maximum_global_index)
-        {
-            return {MAKE_ERROR(DB_GLOBAL_INDEX_OUT_OF_BOUNDS), {}};
-        }
-
-        // go get the transaction output for the global index
-        return m_global_indexes->get<Types::Blockchain::transaction_output_t>(global_index);
-    }
-
-    std::tuple<Error, std::map<uint64_t, Types::Blockchain::transaction_output_t>>
-        BlockchainStorage::get_outputs_by_global_indexes(const std::vector<uint64_t> &global_indexes) const
-    {
-        std::map<uint64_t, Types::Blockchain::transaction_output_t> results;
-
-        // loop through the global indexes
-        for (const auto &index : global_indexes)
-        {
-            // go get the transaction output for the global index
-            const auto [error, output] = get_output_by_global_index(index);
-
-            if (error)
-            {
-                return {error, {}};
-            }
-
-            results.insert({index, output});
-        }
-
-        // if we did not get the same number of results as requested... fail
-        if (results.size() != global_indexes.size())
-        {
-            return {MAKE_ERROR(DB_GLOBAL_INDEX_OUT_OF_BOUNDS), {}};
-        }
-
-        return {MAKE_ERROR(SUCCESS), results};
-    }
-
     std::tuple<Error, Types::Blockchain::transaction_t, crypto_hash_t>
         BlockchainStorage::get_transaction(const crypto_hash_t &txn_hash) const
     {
@@ -247,35 +185,37 @@ namespace Core
         }
     }
 
-    std::tuple<Error, std::vector<uint64_t>>
-        BlockchainStorage::get_transaction_indexes(const crypto_hash_t &txn_hash) const
+    std::tuple<Error, Types::Blockchain::transaction_output_t>
+        BlockchainStorage::get_transaction_output(const crypto_hash_t &output_hash) const
     {
-        // go get all of the transaction output global indexes for the specified transaction
-        const auto [error, data] = m_transaction_indexes->get(txn_hash);
+        const auto [error, output] = m_transaction_outputs->get<crypto_hash_t>(output_hash);
 
         if (error)
         {
-            return {MAKE_ERROR(DB_TRANSACTION_NOT_FOUND), {}};
+            return {MAKE_ERROR(DB_TRANSACTION_OUTPUT_NOT_FOUND), {}};
         }
 
-        std::vector<uint64_t> result;
+        return {MAKE_ERROR(SUCCESS), output};
+    }
 
-        deserializer_t reader(data);
+    std::tuple<Error, std::vector<Types::Blockchain::transaction_output_t>>
+        BlockchainStorage::get_transaction_outputs(const std::vector<crypto_hash_t> &output_hashes) const
+    {
+        std::vector<Types::Blockchain::transaction_output_t> results;
 
-        // the indexes are stored in a bytestream to save space so we need to read until finished
-        while (reader.unread_bytes() > 0)
+        for (const auto &output_hash : output_hashes)
         {
-            try
+            const auto [error, output] = get_transaction_output(output_hash);
+
+            if (error)
             {
-                result.push_back(reader.varint<uint64_t>());
+                return {error, {}};
             }
-            catch (...)
-            {
-                return {MAKE_ERROR(DB_DESERIALIZATION_ERROR), {}};
-            }
+
+            results.push_back(output);
         }
 
-        return {MAKE_ERROR(SUCCESS), result};
+        return {MAKE_ERROR(SUCCESS), results};
     }
 
     bool BlockchainStorage::key_image_exists(const crypto_key_image_t &key_image) const
@@ -515,15 +455,13 @@ namespace Core
             }
         }
 
-        uint64_t count = m_global_indexes->count();
-
         /**
          * The reason that this looks so convoluted is because of the use
          * of std::variant for the different types of transactions
          */
         {
             auto error = std::visit(
-                [this, &count, &db_tx](auto &&arg)
+                [this, &db_tx](auto &&arg)
                 {
                     using T = std::decay_t<decltype(arg)>;
 
@@ -536,30 +474,15 @@ namespace Core
                     {
                         const auto txn_hash = arg.hash();
 
-                        // used to keep track of the output indexes for storage later
-                        std::vector<uint64_t> transaction_output_indexes;
-
                         // loop through the outputs and push them into the database for the global indexes
                         for (const auto &output : arg.outputs)
                         {
-                            auto [error, index] = put_transaction_output(db_tx, count, output);
+                            auto error = put_transaction_output(db_tx, output);
 
                             if (error)
                             {
                                 return error;
                             }
-
-                            count++;
-
-                            transaction_output_indexes.push_back(index);
-                        }
-
-                        // push the transaction global indexes into the database
-                        auto error = put_transaction_indexes(db_tx, txn_hash, transaction_output_indexes);
-
-                        if (error)
-                        {
-                            return error;
                         }
                     }
                     /**
@@ -570,8 +493,6 @@ namespace Core
                     {
                         const auto txn_hash = arg.hash();
 
-                        std::vector<uint64_t> transaction_output_indexes;
-
                         /**
                          * We set the amount to 0 here as a) the amount is masked anyways and b) it does not
                          * matter for generating or checking signatures
@@ -580,23 +501,11 @@ namespace Core
                             Types::Blockchain::transaction_output_t(arg.public_ephemeral, 0, arg.commitment);
 
                         // push the output into the database
-                        auto [error, index] = put_transaction_output(db_tx, count, output);
+                        auto error = put_transaction_output(db_tx, output);
 
                         if (error)
                         {
                             return error;
-                        }
-
-                        count++;
-
-                        transaction_output_indexes.push_back(index);
-
-                        // push the transaction global indexes into the database
-                        auto index_error = put_transaction_indexes(db_tx, txn_hash, transaction_output_indexes);
-
-                        if (index_error)
-                        {
-                            return index_error;
                         }
                     }
 
@@ -623,44 +532,12 @@ namespace Core
         return db_tx->put(txn_hash, block_hash);
     }
 
-    Error BlockchainStorage::put_transaction_indexes(
+    Error BlockchainStorage::put_transaction_output(
         std::unique_ptr<Database::LMDBTransaction> &db_tx,
-        const crypto_hash_t &tx_hash,
-        const std::vector<uint64_t> &indexes)
-    {
-        db_tx->set_database(m_transaction_indexes);
-
-        serializer_t writer;
-
-        // write the indexes to a bytestream for easier storage
-        for (const auto &index : indexes)
-        {
-            writer.varint(index);
-        }
-
-        return db_tx->put(tx_hash, writer.vector());
-    }
-
-    std::tuple<Error, uint64_t> BlockchainStorage::put_transaction_output(
-        std::unique_ptr<Database::LMDBTransaction> &db_tx,
-        const uint64_t &index,
         const Types::Blockchain::transaction_output_t &output)
     {
-        db_tx->set_database(m_global_indexes);
+        db_tx->set_database(m_transaction_outputs);
 
-        /**
-         * We set the amount to 0 here as a) the amount is masked anyways and b) it does not
-         * matter for generating or checking signatures
-         */
-        const auto temp = Types::Blockchain::transaction_output_t(output.public_ephemeral, 0, output.commitment);
-
-        auto error = db_tx->put(index, temp.serialize_output());
-
-        if (error)
-        {
-            return {error, 0};
-        }
-
-        return {MAKE_ERROR(SUCCESS), index};
+        return db_tx->put(output.hash(), output.serialize_output());
     }
 } // namespace Core

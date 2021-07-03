@@ -41,8 +41,7 @@ enum ErrorCode
     DB_EMPTY,
     DB_BLOCK_NOT_FOUND,
     DB_TRANSACTION_NOT_FOUND,
-    DB_GLOBAL_INDEX_OUT_OF_BOUNDS,
-    DB_DESERIALIZATION_ERROR,
+    DB_TRANSACTION_OUTPUT_NOT_FOUND,
 
     // block error code(s)
     BLOCK_TXN_ORDER,
@@ -179,21 +178,21 @@ class Error
      *
      * @return
      */
-    ErrorCode code() const;
+    [[nodiscard]] ErrorCode code() const;
 
     /**
      * Return the filename of the file where the error was created
      *
      * @return
      */
-    std::string file_name() const;
+    [[nodiscard]] std::string file_name() const;
 
     /**
      * Return the line number of the file where the error was created
      *
      * @return
      */
-    size_t line() const;
+    [[nodiscard]] size_t line() const;
 
     /**
      * Provides the error as a JSON object
@@ -207,7 +206,7 @@ class Error
      *
      * @return
      */
-    std::string to_string() const;
+    [[nodiscard]] std::string to_string() const;
 
   private:
     ErrorCode m_error_code;

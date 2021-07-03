@@ -39,9 +39,9 @@ namespace Networking
         if (m_thread_outgoing.joinable())
         {
             m_thread_outgoing.join();
-        }
 
-        m_logger->trace("ZMQ Publisher outgoing thread shut down successfully");
+            m_logger->trace("ZMQ Publisher outgoing thread shut down successfully");
+        }
 
         m_upnp_helper.reset();
 

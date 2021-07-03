@@ -43,30 +43,30 @@ namespace P2P
         if (m_connection_manager_thread.joinable())
         {
             m_connection_manager_thread.join();
-        }
 
-        m_logger->trace("Shut down P2P connection manager thread successfully");
+            m_logger->trace("Shut down P2P connection manager thread successfully");
+        }
 
         if (m_poller_thread.joinable())
         {
             m_poller_thread.join();
-        }
 
-        m_logger->trace("Shut down P2P poller thread successfully");
+            m_logger->trace("Shut down P2P poller thread successfully");
+        }
 
         if (m_keepalive_thread.joinable())
         {
             m_keepalive_thread.join();
-        }
 
-        m_logger->trace("Shut down P2P keep alive thread successfully");
+            m_logger->trace("Shut down P2P keep alive thread successfully");
+        }
 
         if (m_peer_exchange_thread.joinable())
         {
             m_peer_exchange_thread.join();
-        }
 
-        m_logger->trace("Shut down P2P peer exchange thread successfully");
+            m_logger->trace("Shut down P2P peer exchange thread successfully");
+        }
 
         m_logger->debug("P2P Network Node shutdown complete");
     }
@@ -103,7 +103,7 @@ namespace P2P
             return MAKE_ERROR_MSG(P2P_DUPE_CONNECT, "Already connected to specified host and port");
         }
 
-        m_logger->debug("Attempting connection to: {0}:{1} => {2}", host, port, hash.to_string());
+        m_logger->debug("Attempting connection to: {0} => {1}:{2}", hash.to_string(), host, port);
 
         auto client = std::make_shared<Networking::ZMQClient>(m_logger);
 
@@ -180,11 +180,17 @@ namespace P2P
                             continue;
                         }
 
+                        // do not connect if already connected
+                        if (m_connected_peerids.contains(peer.peer_id))
+                        {
+                            continue;
+                        }
+
                         auto error = connect(peer.address.to_string(), peer.port);
 
                         if (error)
                         {
-                            m_logger->trace("Error connecting to peer: {0}", error.to_string());
+                            m_logger->debug("Error connecting to peer: {0}", error.to_string());
                         }
                     }
                 }
@@ -259,6 +265,11 @@ namespace P2P
             network_peer_t peer(ip_address_t(peer_address), packet.peer_id, packet.peer_port, packet.network_id);
 
             m_peer_db->add(peer);
+        }
+
+        if (!m_connected_peerids.contains(packet.peer_id))
+        {
+            m_connected_peerids.insert(packet.peer_id);
         }
 
         for (const auto &peer : packet.peers)

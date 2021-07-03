@@ -64,16 +64,16 @@ namespace Networking
         if (m_thread_outgoing.joinable())
         {
             m_thread_outgoing.join();
-        }
 
-        m_logger->trace("Client outgoing thread shut down successfully");
+            m_logger->trace("Client outgoing thread shut down successfully");
+        }
 
         if (m_thread_incoming.joinable())
         {
             m_thread_incoming.join();
-        }
 
-        m_logger->trace("Client incoming thread shut down successfully");
+            m_logger->trace("Client incoming thread shut down successfully");
+        }
 
         std::scoped_lock lock(m_socket_mutex);
 

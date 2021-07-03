@@ -70,7 +70,7 @@ namespace BaseTypes
             LOAD_U64_FROM_JSON(version);
         }
 
-        uint64_t type() const override
+        [[nodiscard]] uint64_t type() const override
         {
             return l_type;
         }
@@ -236,7 +236,7 @@ namespace BaseTypes
             writer.key(commitment);
         }
 
-        std::vector<uint8_t> serialize_output() const
+        [[nodiscard]] std::vector<uint8_t> serialize_output() const
         {
             serializer_t writer;
 
@@ -375,7 +375,7 @@ namespace BaseTypes
 
         void deserialize_suffix(deserializer_t &reader)
         {
-            offsets = reader.varintV<uint64_t>();
+            ring_participants = reader.keyV<crypto_hash_t>();
 
             signatures.clear();
 
@@ -384,7 +384,7 @@ namespace BaseTypes
 
                 for (size_t i = 0; i < count; ++i)
                 {
-                    signatures.push_back(reader);
+                    signatures.emplace_back(reader);
                 }
             }
 
@@ -393,7 +393,7 @@ namespace BaseTypes
 
         void serialize_suffix(serializer_t &writer) const
         {
-            writer.varint(offsets);
+            writer.key(ring_participants);
 
             writer.varint(signatures.size());
 
@@ -407,15 +407,7 @@ namespace BaseTypes
 
         JSON_TO_FUNC(suffix_toJSON)
         {
-            writer.Key("offsets");
-            writer.StartArray();
-            {
-                for (const auto &offset : offsets)
-                {
-                    writer.Uint64(offset);
-                }
-            }
-            writer.EndArray();
+            KEYV_TO_JSON(ring_participants);
 
             KEYV_TO_JSON(signatures);
 
@@ -427,16 +419,7 @@ namespace BaseTypes
         {
             JSON_OBJECT_OR_THROW();
 
-            JSON_MEMBER_OR_THROW("offsets");
-
-            offsets.clear();
-
-            for (const auto &elem : get_json_array(j, "offsets"))
-            {
-                const auto offset = get_json_uint64_t(elem);
-
-                offsets.emplace_back(offset);
-            }
+            LOAD_KEYV_FROM_JSON(ring_participants);
 
             LOAD_KEYV_FROM_JSON(signatures);
 
@@ -445,7 +428,7 @@ namespace BaseTypes
             range_proof = crypto_bulletproof_plus_t(j, "range_proof");
         }
 
-        std::vector<uint64_t> offsets;
+        std::vector<crypto_hash_t> ring_participants;
         std::vector<crypto_clsag_signature_t> signatures;
         crypto_bulletproof_plus_t range_proof;
     };
@@ -692,6 +675,7 @@ namespace std
     inline ostream &operator<<(ostream &os, const Types::Blockchain::transaction_output_t &value)
     {
         os << "\tTransaction Output" << std::endl
+           << "\t\tHash: " << value.hash() << std::endl
            << "\t\tPublic Ephemeral: " << value.public_ephemeral << std::endl
            << "\t\tAmount: " << value.amount << std::endl
            << "\t\tCommitment: " << value.commitment << std::endl;
