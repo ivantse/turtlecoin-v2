@@ -10,9 +10,10 @@
 #include <modes.h>
 #include <pwdbased.h>
 #include <random.h>
+#include <serializer.h>
 #include <sha.h>
 
-namespace AES
+namespace Utilities::AES
 {
     std::tuple<Error, std::string> decrypt(const std::string &input, const std::string &password, size_t iterations)
     {
@@ -114,4 +115,4 @@ namespace AES
         // spit it all back as a string
         return std::string(bytes.begin(), bytes.end());
     }
-} // namespace AES
+} // namespace Utilities::AES
