@@ -37,8 +37,12 @@ namespace Types::Network
     {
         network_peer_t() {}
 
-        network_peer_t(const ip_address_t &peer_address, const crypto_hash_t &peer_id, uint16_t peer_port):
-            address(peer_address), peer_id(peer_id), port(peer_port)
+        network_peer_t(
+            ip_address_t peer_address,
+            const crypto_hash_t &peer_id,
+            uint16_t peer_port,
+            const crypto_hash_t &network_id):
+            address(std::move(peer_address)), peer_id(peer_id), port(peer_port), network_id(network_id)
         {
         }
 
@@ -64,6 +68,8 @@ namespace Types::Network
 
             peer_id = reader.key<crypto_hash_t>();
 
+            network_id = reader.key<crypto_hash_t>();
+
             last_seen = reader.varint<uint64_t>();
         }
 
@@ -78,6 +84,8 @@ namespace Types::Network
             LOAD_U32_FROM_JSON(port);
 
             LOAD_KEY_FROM_JSON(peer_id);
+
+            LOAD_KEY_FROM_JSON(network_id);
 
             LOAD_U64_FROM_JSON(last_seen);
         }
@@ -100,6 +108,8 @@ namespace Types::Network
             writer.varint(port);
 
             writer.key(peer_id);
+
+            writer.key(network_id);
 
             writer.varint(last_seen);
         }
@@ -129,6 +139,8 @@ namespace Types::Network
 
                 KEY_TO_JSON(peer_id);
 
+                KEY_TO_JSON(network_id);
+
                 U64_TO_JSON(last_seen);
             }
             writer.EndObject();
@@ -148,7 +160,7 @@ namespace Types::Network
 
         ip_address_t address;
         uint16_t port = 0;
-        crypto_hash_t peer_id;
+        crypto_hash_t peer_id, network_id;
         uint64_t last_seen = time(nullptr);
     };
 } // namespace Types::Network
@@ -158,9 +170,10 @@ namespace std
     inline ostream &operator<<(ostream &os, const Types::Network::network_peer_t &value)
     {
         os << "\tPeer Entry: [" << value.size() << " bytes]" << std::endl
+           << "\t\tPeer ID: " << value.peer_id << std::endl
            << "\t\tIP Address: " << value.address.to_string() << std::endl
            << "\t\tPort: " << std::to_string(value.port) << std::endl
-           << "\t\tPeer ID: " << value.peer_id << std::endl
+           << "\tNetwork ID: " << value.network_id << std::endl
            << "\t\tLast Seen: " << value.last_seen << std::endl;
 
         return os;

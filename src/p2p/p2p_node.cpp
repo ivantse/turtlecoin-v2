@@ -11,8 +11,13 @@ using namespace Types::Network;
 
 namespace P2P
 {
-    Node::Node(logger &logger, const std::string &path, const uint16_t &bind_port, bool seed_mode):
-        m_running(false), m_logger(logger), m_seed_mode(seed_mode)
+    Node::Node(
+        logger &logger,
+        const std::string &path,
+        const uint16_t &bind_port,
+        bool seed_mode,
+        const crypto_hash_t &network_id):
+        m_running(false), m_logger(logger), m_seed_mode(seed_mode), m_network_id(network_id)
     {
         m_peer_db = std::make_shared<PeerDB>(logger, path);
 
@@ -68,7 +73,7 @@ namespace P2P
 
     packet_handshake_t Node::build_handshake() const
     {
-        packet_handshake_t packet(m_peer_db->peer_id(), m_server->port());
+        packet_handshake_t packet(m_peer_db->peer_id(), m_server->port(), m_network_id);
 
         packet.peers = build_peer_list();
 
@@ -77,7 +82,7 @@ namespace P2P
 
     std::vector<network_peer_t> Node::build_peer_list() const
     {
-        std::vector<network_peer_t> results = m_peer_db->peers();
+        auto results = m_peer_db->peers();
 
         if (results.size() > Configuration::P2P::MAXIMUM_PEERS_EXCHANGED)
         {
@@ -149,7 +154,21 @@ namespace P2P
 
             if (delta_connections > 0)
             {
-                const auto peers = m_peer_db->peers(delta_connections);
+                std::vector<network_peer_t> peers;
+
+                /**
+                 * If we are running in seed mode, then we connect to peers of all networks
+                 * so that we can stretch far and wide and learn about as many peers
+                 * as possible
+                 */
+                if (m_seed_mode)
+                {
+                    peers = m_peer_db->peers(delta_connections);
+                }
+                else
+                {
+                    peers = m_peer_db->peers(delta_connections, m_network_id);
+                }
 
                 if (!peers.empty())
                 {
@@ -237,7 +256,7 @@ namespace P2P
         }
 
         {
-            network_peer_t peer(ip_address_t(peer_address), packet.peer_id, packet.peer_port);
+            network_peer_t peer(ip_address_t(peer_address), packet.peer_id, packet.peer_port, packet.network_id);
 
             m_peer_db->add(peer);
         }
@@ -272,6 +291,12 @@ namespace P2P
     {
         // if we are running in seed mode, then all data packets are ignored
         if (m_seed_mode)
+        {
+            return;
+        }
+
+        // if the packet is not for our network id, drop it
+        if (packet.network_id != m_network_id)
         {
             return;
         }
@@ -360,7 +385,7 @@ namespace P2P
         }
 
         {
-            network_peer_t peer(ip_address_t(peer_address), packet.peer_id, packet.peer_port);
+            network_peer_t peer(ip_address_t(peer_address), packet.peer_id, packet.peer_port, packet.network_id);
 
             m_peer_db->add(peer);
         }
@@ -377,7 +402,7 @@ namespace P2P
 
         if (is_server)
         {
-            packet_peer_exchange_t reply_peer_exchange(m_peer_db->peer_id(), m_server->port());
+            packet_peer_exchange_t reply_peer_exchange(m_peer_db->peer_id(), m_server->port(), m_network_id);
 
             reply_peer_exchange.peers = build_peer_list();
 
@@ -493,7 +518,7 @@ namespace P2P
                 break;
             }
 
-            packet_peer_exchange_t packet(m_peer_db->peer_id(), m_server->port());
+            packet_peer_exchange_t packet(m_peer_db->peer_id(), m_server->port(), m_network_id);
 
             send(packet);
         }

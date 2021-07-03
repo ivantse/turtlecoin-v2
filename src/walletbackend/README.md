@@ -128,17 +128,17 @@ const auto [public_spend, private_spend] = Crypto::generate_wallet_spend_keys(wa
 ### Encoding
 
 ```c++
-#include <address_encoding.h>
+#include <address.h>
 
-const auto public_address = TurtleCoin::Utilities::encode_address(public_spend, public_view);
+const auto public_address = TurtleCoin::Common::Address::encode(public_spend, public_view);
 ```
 
 ### Decoding
 
 ```c++
-#include <address_encoding.h>
+#include <address.h>
 
-const auto [success, public_spend, public_view] = TurtleCoin::Utilities::decode_address(public_address);
+const auto [success, public_spend, public_view] = TurtleCoin::Common::Address::decode(public_address);
 ```
 
 ## Wallet Creation
@@ -162,6 +162,7 @@ of public keys of the subwallets in a wallet very easily.
 Full sample subwallet generation of 1,000 subwallets upon wallet creation:
 
 ```c++
+#include <address.h>
 #include <crypto.h>
 
 const auto [wallet_seed, mnemonic_words, timestamp] = Crypto::generate_wallet_seed();
@@ -178,7 +179,7 @@ for (size_t i = 0; i < 1000; ++i)
 
     subwallets.insert({public_spend, private_spend});
     
-    const auto public_address = TurtleCoin::Utilities::encode_address(public_spend, public_view);
+    const auto public_address = TurtleCoin::Common::Address::encode(public_spend, public_view);
     
     subwallet_addresses.insert({public_spend, public_address});
 }

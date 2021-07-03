@@ -7,6 +7,7 @@
 
 #include <crypto_types.h>
 #include <cstdint>
+#include <hashing.h>
 
 struct SeedNode
 {
@@ -117,7 +118,7 @@ namespace Configuration
          * or peer exchange packet, if more than this are received, the packet is
          * discarded as a protocol violation error
          */
-        const size_t MAXIMUM_PEERS_EXCHANGED = 200;
+        const size_t MAXIMUM_PEERS_EXCHANGED = 250;
 
         /**
          * Peers in our peer database will be pruned from our database if the last
@@ -135,6 +136,13 @@ namespace Configuration
          * to connect to if our peer list database is empty
          */
         const std::vector<SeedNode> SEED_NODES = {{"165.227.252.132", 12897}};
+
+        /**
+         * Defines the P2P Network ID that we find interesting
+         */
+        const crypto_hash_t NETWORK_ID = {0x20, 0x20, 0x20, 0x54, 0x68, 0x65, 0x20, 0x54, 0x75, 0x72, 0x74,
+                                          0x6c, 0x65, 0x43, 0x6f, 0x69, 0x6e, 0xae, 0x20, 0x44, 0x65, 0x76,
+                                          0x65, 0x6c, 0x6f, 0x70, 0x65, 0x72, 0x73, 0x20, 0x20, 0x20};
 
         /**
          * Sets the default outbound connection count that we will try to maintain

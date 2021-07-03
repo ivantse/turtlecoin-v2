@@ -16,7 +16,8 @@ namespace Types::Network
             l_type = BaseTypes::NETWORK_PEER_EXCHANGE;
         }
 
-        packet_peer_exchange_t(const crypto_hash_t &peer_id, uint16_t peer_port): peer_id(peer_id), peer_port(peer_port)
+        packet_peer_exchange_t(const crypto_hash_t &peer_id, uint16_t peer_port, const crypto_hash_t &network_id):
+            peer_id(peer_id), peer_port(peer_port), network_id(network_id)
         {
             l_type = BaseTypes::NETWORK_PEER_EXCHANGE;
         }
@@ -54,6 +55,8 @@ namespace Types::Network
 
             peer_port = reader.varint<uint16_t>();
 
+            network_id = reader.key<crypto_hash_t>();
+
             const auto peer_count = reader.varint<uint64_t>();
 
             peers.clear();
@@ -77,6 +80,8 @@ namespace Types::Network
             LOAD_U32_FROM_JSON(version);
 
             LOAD_KEY_FROM_JSON(peer_id);
+
+            LOAD_KEY_FROM_JSON(network_id);
 
             JSON_MEMBER_OR_THROW("peer_port");
 
@@ -112,6 +117,8 @@ namespace Types::Network
             writer.key(peer_id);
 
             writer.varint(peer_port);
+
+            writer.key(network_id);
 
             writer.varint(peers.size());
 
@@ -149,6 +156,8 @@ namespace Types::Network
                 writer.Key("peer_port");
                 writer.Uint(peer_port);
 
+                KEY_TO_JSON(network_id);
+
                 writer.Key("peers");
                 writer.StartArray();
                 {
@@ -174,7 +183,7 @@ namespace Types::Network
             return l_type;
         }
 
-        crypto_hash_t peer_id;
+        crypto_hash_t peer_id, network_id;
         uint16_t peer_port = 0;
         std::vector<network_peer_t> peers;
     };
@@ -189,6 +198,7 @@ namespace std
            << "\tVersion: " << std::to_string(value.version) << std::endl
            << "\tPeer ID: " << value.peer_id << std::endl
            << "\tPeer Port: " << std::to_string(value.peer_port) << std::endl
+           << "\tPeer Network ID: " << value.network_id << std::endl
            << "\tPeers: " << std::endl;
 
         for (const auto &peer : value.peers)

@@ -39,8 +39,14 @@ namespace P2P
          * @param path
          * @param bind_port
          * @param seed_mode
+         * @param network_id
          */
-        Node(logger &logger, const std::string &path, const uint16_t &bind_port, bool seed_mode = false);
+        Node(
+            logger &logger,
+            const std::string &path,
+            const uint16_t &bind_port,
+            bool seed_mode = false,
+            const crypto_hash_t &network_id = Configuration::P2P::NETWORK_ID);
 
         ~Node();
 
@@ -250,6 +256,8 @@ namespace P2P
         logger m_logger;
 
         std::condition_variable m_stopping;
+
+        crypto_hash_t m_network_id;
     };
 } // namespace P2P
 

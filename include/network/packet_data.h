@@ -45,9 +45,7 @@ namespace Types::Network
 
             version = reader.varint<uint16_t>();
 
-            const auto network_bytes = reader.varint<uint64_t>();
-
-            network_id = reader.bytes(network_bytes);
+            network_id = reader.key<crypto_hash_t>();
 
             const auto payload_bytes = reader.varint<uint64_t>();
 
@@ -64,9 +62,7 @@ namespace Types::Network
 
             LOAD_U32_FROM_JSON(version);
 
-            JSON_MEMBER_OR_THROW("network_id");
-
-            network_id = Crypto::StringTools::from_hex(get_json_string(j, "network_id"));
+            LOAD_KEY_FROM_JSON(network_id);
 
             JSON_MEMBER_OR_THROW("payload");
 
@@ -90,9 +86,7 @@ namespace Types::Network
 
             writer.varint(version);
 
-            writer.varint(network_id.size());
-
-            writer.bytes(network_id);
+            writer.key(network_id);
 
             writer.varint(payload.size());
 
@@ -122,8 +116,7 @@ namespace Types::Network
 
                 U32_TO_JSON(version);
 
-                writer.Key("network_id");
-                writer.String(Crypto::StringTools::to_hex(network_id.data(), network_id.size()));
+                KEY_TO_JSON(network_id);
 
                 writer.Key("payload");
                 writer.String(Crypto::StringTools::to_hex(payload.data(), payload.size()));
@@ -143,7 +136,7 @@ namespace Types::Network
             return l_type;
         }
 
-        std::vector<uint8_t> network_id;
+        crypto_hash_t network_id;
         std::vector<uint8_t> payload;
     };
 } // namespace Types::Network
@@ -155,8 +148,7 @@ namespace std
         os << "Data Packet [" << value.size() << " bytes]" << std::endl
            << "\tType: " << std::to_string(value.type()) << std::endl
            << "\tVersion: " << std::to_string(value.version) << std::endl
-           << "\tNetwork ID: " << Crypto::StringTools::to_hex(value.network_id.data(), value.network_id.size())
-           << std::endl
+           << "\tNetwork ID: " << value.network_id << std::endl
            << "\tPayload: " << Crypto::StringTools::to_hex(value.payload.data(), value.payload.size()) << std::endl;
 
         return os;

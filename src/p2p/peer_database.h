@@ -86,10 +86,14 @@ namespace P2P
          * NOTE: Specifying a count of 0 will return all peers while supplying
          * a non-zero count will return that many peers if available.
          *
+         * NOTE: If the network ID is specified, only peers from that
+         * network ID will be returned
+         *
          * @param count
+         * @param network_id
          * @return
          */
-        std::vector<network_peer_t> peers(size_t count = 0) const;
+        std::vector<network_peer_t> peers(size_t count = 0, const crypto_hash_t &network_id = crypto_hash_t()) const;
 
         /**
          * Prunes peers from the database that have not been seen in the last

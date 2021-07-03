@@ -113,11 +113,29 @@ namespace P2P
         return m_database->list_keys<crypto_hash_t>();
     }
 
-    std::vector<network_peer_t> PeerDB::peers(size_t count) const
+    std::vector<network_peer_t> PeerDB::peers(size_t count, const crypto_hash_t &network_id) const
     {
         std::scoped_lock lock(m_mutex);
 
         auto peers = m_database->get_all<crypto_hash_t, network_peer_t>();
+
+        /**
+         * We were asked for peers for a specific network ID
+         * then we need to filter the results to just those
+         * peers that are participating in that network ID
+         */
+        if (!network_id.empty())
+        {
+            std::vector<network_peer_t> temp;
+
+            std::copy_if(
+                peers.begin(),
+                peers.end(),
+                std::back_inserter(temp),
+                [=](const auto &elem) { return elem.network_id == network_id; });
+
+            peers = temp;
+        }
 
         const auto seed = std::chrono::system_clock::now().time_since_epoch().count();
 
