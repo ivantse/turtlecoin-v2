@@ -65,16 +65,6 @@ namespace Networking
         m_logger->debug("ZMQ Server shutdown complete on port {0}", m_bind_port);
     }
 
-    void ZMQServer::add_connection(const crypto_hash_t &identity)
-    {
-        if (!m_connections.contains(identity))
-        {
-            m_connections.insert(identity);
-
-            m_logger->trace("Adding registered connection for: {0}", identity.to_string());
-        }
-    }
-
     Error ZMQServer::bind()
     {
         try
@@ -112,16 +102,6 @@ namespace Networking
         return m_connections.size();
     }
 
-    void ZMQServer::del_connection(const crypto_hash_t &identity)
-    {
-        if (m_connections.contains(identity))
-        {
-            m_connections.erase(identity);
-        }
-
-        m_logger->trace("Deleting registered connection for: {0}", identity.to_string());
-    }
-
     std::string ZMQServer::external_address() const
     {
         if (!m_upnp_helper)
@@ -156,7 +136,14 @@ namespace Networking
 
                     const auto from = crypto_hash_t(data);
 
-                    add_connection(from);
+                    if (!m_connections.contains(from))
+                    {
+                        m_logger->trace("Adding registered connection for: {0}", from.to_string());
+
+                        m_connections.insert(from);
+
+                        m_logger->trace("Registered connection for: {0}", from.to_string());
+                    }
 
                     message = messages.pop();
 
@@ -216,6 +203,8 @@ namespace Networking
                     continue;
                 }
 
+                std::vector<crypto_hash_t> to_delete;
+
                 // messages without a destination are BROADCAST messages
                 if (message.to.empty())
                 {
@@ -239,7 +228,7 @@ namespace Networking
                             }
                             catch (const zmq::error_t &e)
                             {
-                                del_connection(to);
+                                to_delete.push_back(to);
                             }
                         });
                 }
@@ -260,8 +249,21 @@ namespace Networking
                     }
                     catch (const zmq::error_t &e)
                     {
-                        del_connection(message.to);
+                        to_delete.push_back(message.to);
                     }
+                }
+
+                /**
+                 * Loop through any of the identities that we found that we need to delete
+                 * and unregister them from the connections list
+                 */
+                for (const auto &identity : to_delete)
+                {
+                    m_logger->trace("Deleting registered connection for: {0}", identity.to_string());
+
+                    m_connections.erase(identity);
+
+                    m_logger->trace("Deleted registered connection for: {0}", identity.to_string());
                 }
             }
 

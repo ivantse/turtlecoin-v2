@@ -116,20 +116,6 @@ namespace Networking
 
       private:
         /**
-         * Adds a record of the connection
-         *
-         * @param identity
-         */
-        void add_connection(const crypto_hash_t &identity);
-
-        /**
-         * Removes a record of the connection
-         *
-         * @param identity
-         */
-        void del_connection(const crypto_hash_t &identity);
-
-        /**
          * The thread that reads from the ZMQ socket
          */
         void incoming_thread();
