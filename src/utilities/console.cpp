@@ -125,6 +125,11 @@ namespace Utilities
             // the first part is our command
             command = command_parts.front();
 
+            if (command.empty())
+            {
+                continue;
+            }
+
             // typing ? is the same as asking for help
             if (command == "?")
             {

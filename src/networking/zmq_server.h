@@ -56,6 +56,13 @@ namespace Networking
         Error bind();
 
         /**
+         * Returns the vector of connected addresses
+         *
+         * @return
+         */
+        std::vector<std::string> connected() const;
+
+        /**
          * Returns the number of connections to the instance
          *
          * @return

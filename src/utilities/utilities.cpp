@@ -13,6 +13,40 @@
 
 namespace Utilities
 {
+    void print_table(std::vector<std::string> rows, bool has_header)
+    {
+        size_t long_left = 0;
+
+        for (const auto &elem : rows)
+        {
+            long_left = std::max(long_left, elem.length());
+        }
+
+        size_t total_width = long_left + 4;
+
+        std::cout << COLOR::white << std::string(total_width, '=') << COLOR::reset << std::endl;
+
+        if (has_header)
+        {
+            const auto &elem = rows.front();
+
+            std::cout << COLOR::white << "| " << COLOR::yellow << str_pad(elem, long_left) << COLOR::white << " |"
+                      << std::endl;
+
+            std::cout << COLOR::white << std::string(total_width, '=') << COLOR::reset << std::endl;
+
+            rows.erase(rows.begin());
+        }
+
+        for (const auto &elem : rows)
+        {
+            std::cout << COLOR::white << "| " << COLOR::yellow << str_pad(elem, long_left) << COLOR::white << " |"
+                      << std::endl;
+        }
+
+        std::cout << COLOR::white << std::string(total_width, '=') << COLOR::reset << std::endl << std::endl;
+    }
+
     void print_table(std::vector<std::tuple<std::string, std::string>> rows, bool has_header)
     {
         size_t long_left = 0, long_right = 0;
@@ -25,8 +59,6 @@ namespace Utilities
         }
 
         size_t total_width = long_left + long_right + 7;
-
-        std::stringstream ss;
 
         std::cout << COLOR::white << std::string(total_width, '=') << COLOR::reset << std::endl;
 
@@ -65,8 +97,6 @@ namespace Utilities
         }
 
         size_t total_width = long_left + long_middle + long_right + 10;
-
-        std::stringstream ss;
 
         std::cout << COLOR::white << std::string(total_width, '=') << COLOR::reset << std::endl;
 

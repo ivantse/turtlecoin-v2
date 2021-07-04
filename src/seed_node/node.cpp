@@ -91,6 +91,36 @@ int main(int argc, char **argv)
         });
 
     console->register_command(
+        "incoming_connections",
+        "Displays the current incoming connections",
+        [&]()
+        {
+            std::vector<std::string> rows {"Address"};
+
+            for (const auto &address : server->incoming_connected())
+            {
+                rows.emplace_back(address);
+            }
+
+            Utilities::print_table(rows, true);
+        });
+
+    console->register_command(
+        "outgoing_connections",
+        "Displays the current outgoing connections",
+        [&]()
+        {
+            std::vector<std::string> rows {"Address"};
+
+            for (const auto &address : server->outgoing_connected())
+            {
+                rows.emplace_back(address);
+            }
+
+            Utilities::print_table(rows, true);
+        });
+
+    console->register_command(
         "peers",
         "Prints the full list of known peers",
         [&]()

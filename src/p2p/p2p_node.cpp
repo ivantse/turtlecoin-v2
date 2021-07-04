@@ -136,7 +136,7 @@ namespace P2P
                 m_clients.each(
                     [&](const auto &id, const auto &client)
                     {
-                        if (!client->connected())
+                        if (!client->is_connected())
                         {
                             m_logger->trace("Client {0} is no longer connected, destroying...", id.to_string());
 
@@ -417,6 +417,11 @@ namespace P2P
         }
     }
 
+    std::vector<std::string> Node::incoming_connected() const
+    {
+        return m_server->connected();
+    }
+
     size_t Node::incoming_connections() const
     {
         return m_server->connections();
@@ -425,6 +430,22 @@ namespace P2P
     ThreadSafeQueue<network_msg_t> &Node::messages()
     {
         return m_messages;
+    }
+
+    std::vector<std::string> Node::outgoing_connected() const
+    {
+        std::vector<std::string> results;
+
+        m_clients.each(
+            [&](const crypto_hash_t &id, const std::shared_ptr<Networking::ZMQClient> &client)
+            {
+                for (const auto &connection : client->connected())
+                {
+                    results.emplace_back(connection);
+                }
+            });
+
+        return results;
     }
 
     size_t Node::outgoing_connections() const

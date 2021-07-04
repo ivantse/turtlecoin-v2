@@ -104,9 +104,13 @@ namespace Networking
         }
     }
 
-    bool ZMQSubscriber::connected() const
+    std::vector<std::string> ZMQSubscriber::connected() const
     {
-        return !m_monitor.connected()->empty();
+        std::vector<std::string> results;
+
+        m_monitor.connected()->each([&](const std::string &elem) { results.emplace_back(elem); });
+
+        return results;
     }
 
     void ZMQSubscriber::disconnect(const std::string &host, const uint16_t &port)
@@ -126,6 +130,11 @@ namespace Networking
     crypto_hash_t ZMQSubscriber::identity() const
     {
         return m_identity;
+    }
+
+    bool ZMQSubscriber::is_connected() const
+    {
+        return !m_monitor.connected()->empty();
     }
 
     void ZMQSubscriber::incoming_thread()

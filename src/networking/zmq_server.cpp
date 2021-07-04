@@ -97,6 +97,15 @@ namespace Networking
         }
     }
 
+    std::vector<std::string> ZMQServer::connected() const
+    {
+        std::vector<std::string> results;
+
+        m_monitor.connected()->each([&](const std::string &elem) { results.emplace_back(elem); });
+
+        return results;
+    }
+
     size_t ZMQServer::connections() const
     {
         return m_connections.size();

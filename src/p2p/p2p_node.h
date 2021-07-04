@@ -58,6 +58,13 @@ namespace P2P
         std::string external_address() const;
 
         /**
+         * Returns a vector of the incoming connection addresses
+         *
+         * @return
+         */
+        std::vector<std::string> incoming_connected() const;
+
+        /**
          * Returns the number of incoming connections
          *
          * @return
@@ -70,6 +77,13 @@ namespace P2P
          * @return
          */
         ThreadSafeQueue<network_msg_t> &messages();
+
+        /**
+         * Returns a vector of the outgoing connection addresses
+         *
+         * @return
+         */
+        std::vector<std::string> outgoing_connected() const;
 
         /**
          * Returns the number of outgoing connections

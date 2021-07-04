@@ -11,6 +11,14 @@
 namespace Utilities
 {
     /**
+     * Prints the given vector of strings as a table
+     *
+     * @param rows
+     * @param has_header
+     */
+    void print_table(std::vector<std::string> rows, bool has_header = false);
+
+    /**
      * Prints the given tuple of left/right columns as a table
      *
      * @param rows

@@ -82,6 +82,15 @@ namespace Networking
         }
     }
 
+    std::vector<std::string> ZMQPublisher::connected() const
+    {
+        std::vector<std::string> results;
+
+        m_monitor.connected()->each([&](const std::string &elem) { results.emplace_back(elem); });
+
+        return results;
+    }
+
     std::string ZMQPublisher::external_address() const
     {
         if (!m_upnp_helper)

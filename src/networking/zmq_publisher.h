@@ -51,6 +51,13 @@ namespace Networking
         Error bind();
 
         /**
+         * Returns the vector of connected addresses
+         *
+         * @return
+         */
+        std::vector<std::string> connected() const;
+
+        /**
          * Returns the external IP address for the service (if detected)
          *
          * @return

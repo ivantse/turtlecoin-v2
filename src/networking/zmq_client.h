@@ -59,11 +59,11 @@ namespace Networking
         Error connect(const std::string &host, const uint16_t &port = Configuration::P2P::DEFAULT_BIND_PORT);
 
         /**
-         * Returns if the client is connected
+         * Returns the vector of connected addresses
          *
          * @return
          */
-        bool connected() const;
+        std::vector<std::string> connected() const;
 
         /**
          * Returns the identity of the client that is used in the message envelopes
@@ -71,6 +71,13 @@ namespace Networking
          * @return
          */
         crypto_hash_t identity() const;
+
+        /**
+         * Returns if the client is connected
+         *
+         * @return
+         */
+        bool is_connected() const;
 
         /**
          * Returns the current queue of incoming messages
