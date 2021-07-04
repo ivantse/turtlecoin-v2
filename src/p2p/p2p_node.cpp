@@ -180,12 +180,6 @@ namespace P2P
                             continue;
                         }
 
-                        // do not connect if already connected
-                        if (m_connected_peerids.contains(peer.peer_id))
-                        {
-                            continue;
-                        }
-
                         auto error = connect(peer.address.to_string(), peer.port);
 
                         if (error)
@@ -265,11 +259,6 @@ namespace P2P
             network_peer_t peer(ip_address_t(peer_address), packet.peer_id, packet.peer_port, packet.network_id);
 
             m_peer_db->add(peer);
-        }
-
-        if (!m_connected_peerids.contains(packet.peer_id))
-        {
-            m_connected_peerids.insert(packet.peer_id);
         }
 
         for (const auto &peer : packet.peers)
