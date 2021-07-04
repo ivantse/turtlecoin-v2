@@ -51,6 +51,13 @@ namespace P2P
         ~Node();
 
         /**
+         * Returns the nodes external IP address if available
+         *
+         * @return
+         */
+        std::string external_address() const;
+
+        /**
          * Returns the number of incoming connections
          *
          * @return
@@ -84,6 +91,13 @@ namespace P2P
          * @return
          */
         std::shared_ptr<PeerDB> peers() const;
+
+        /**
+         * Returns the nodes bind port
+         *
+         * @return
+         */
+        uint16_t port() const;
 
         /**
          * Replies via the server to a request by a client

@@ -197,6 +197,11 @@ namespace P2P
         }
     }
 
+    std::string Node::external_address() const
+    {
+        return m_server->external_address();
+    }
+
     void Node::handle_incoming_message(const zmq_message_envelope_t &message, bool is_server)
     {
         try
@@ -435,6 +440,11 @@ namespace P2P
     std::shared_ptr<PeerDB> Node::peers() const
     {
         return m_peer_db;
+    }
+
+    uint16_t Node::port() const
+    {
+        return m_server->port();
     }
 
     void Node::poller()

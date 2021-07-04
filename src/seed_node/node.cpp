@@ -77,9 +77,15 @@ int main(int argc, char **argv)
                 {"P2P Version", std::to_string(Configuration::P2P::VERSION)},
                 {"Minimum P2P Version", std::to_string(Configuration::P2P::MINIMUM_VERSION)},
                 {"Peer ID", server->peer_id().to_string()},
+                {"Port", std::to_string(server->port())},
                 {"Incoming Connections", std::to_string(server->incoming_connections())},
                 {"Outgoing Connections", std::to_string(server->outgoing_connections())},
                 {"Known Peers", std::to_string(server->peers()->count())}};
+
+            if (!server->external_address().empty())
+            {
+                rows.emplace_back("External IP", server->external_address());
+            }
 
             Utilities::print_table(rows, true);
         });
