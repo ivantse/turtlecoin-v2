@@ -40,7 +40,7 @@ namespace Networking
 
         m_socket.set(zmq::sockopt::connect_timeout, timeout);
 
-        m_socket.set(zmq::sockopt::immediate, false);
+        m_socket.set(zmq::sockopt::immediate, true);
 
         m_socket.set(zmq::sockopt::ipv6, true);
 
