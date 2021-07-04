@@ -5,8 +5,8 @@
 #ifndef TURTLECOIN_THREAD_SAFE_QUEUE_H
 #define TURTLECOIN_THREAD_SAFE_QUEUE_H
 
-#include <mutex>
 #include <queue>
+#include <shared_mutex>
 #include <thread>
 #include <vector>
 
@@ -22,7 +22,7 @@ template<typename T> class ThreadSafeQueue
      */
     T back() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.back();
     }
@@ -32,7 +32,7 @@ template<typename T> class ThreadSafeQueue
      */
     void clear()
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container = std::queue<T>();
     }
@@ -44,7 +44,7 @@ template<typename T> class ThreadSafeQueue
      */
     bool empty() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.empty();
     }
@@ -56,7 +56,7 @@ template<typename T> class ThreadSafeQueue
      */
     T front() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.front();
     }
@@ -68,7 +68,7 @@ template<typename T> class ThreadSafeQueue
      */
     T pop()
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         auto item = m_container.front();
 
@@ -84,7 +84,7 @@ template<typename T> class ThreadSafeQueue
      */
     void push(const T &item)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container.push(item);
     }
@@ -97,7 +97,7 @@ template<typename T> class ThreadSafeQueue
      */
     void push(const std::vector<T> &items)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         for (const auto &item : items)
         {
@@ -112,7 +112,7 @@ template<typename T> class ThreadSafeQueue
      */
     size_t size() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.size();
     }
@@ -122,7 +122,7 @@ template<typename T> class ThreadSafeQueue
      */
     void skip()
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         if (m_container.empty())
         {
@@ -135,7 +135,7 @@ template<typename T> class ThreadSafeQueue
   private:
     std::queue<T> m_container;
 
-    mutable std::mutex m_mutex;
+    mutable std::shared_mutex m_mutex;
 };
 
 #endif

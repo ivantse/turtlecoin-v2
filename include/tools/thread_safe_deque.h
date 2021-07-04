@@ -6,7 +6,7 @@
 #define TURTLECOIN_THREAD_SAFE_DEQUE_H
 
 #include <deque>
-#include <mutex>
+#include <shared_mutex>
 #include <thread>
 #include <vector>
 
@@ -23,7 +23,7 @@ template<typename T> class ThreadSafeDeque
      */
     T operator[](size_t position) const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container[position];
     }
@@ -36,7 +36,7 @@ template<typename T> class ThreadSafeDeque
      */
     T at(size_t position) const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.at(position);
     }
@@ -48,7 +48,7 @@ template<typename T> class ThreadSafeDeque
      */
     T back() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.back();
     }
@@ -58,7 +58,7 @@ template<typename T> class ThreadSafeDeque
      */
     void clear()
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container.clear();
     }
@@ -69,9 +69,9 @@ template<typename T> class ThreadSafeDeque
      *
      * @param func
      */
-    void each(const std::function<void(const T &)> &func)
+    void each(const std::function<void(const T &)> &func) const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         for (const auto &elem : m_container)
         {
@@ -87,7 +87,7 @@ template<typename T> class ThreadSafeDeque
      */
     void eachref(const std::function<void(T &)> &func)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         for (auto &elem : m_container)
         {
@@ -102,7 +102,7 @@ template<typename T> class ThreadSafeDeque
      */
     bool empty() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.empty();
     }
@@ -114,7 +114,7 @@ template<typename T> class ThreadSafeDeque
      */
     T front() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.front();
     }
@@ -126,7 +126,7 @@ template<typename T> class ThreadSafeDeque
      */
     size_t max_size() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.max_size();
     }
@@ -138,7 +138,7 @@ template<typename T> class ThreadSafeDeque
      */
     T pop_back()
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         auto item = m_container.back();
 
@@ -154,7 +154,7 @@ template<typename T> class ThreadSafeDeque
      */
     T pop_front()
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         auto item = m_container.front();
 
@@ -170,7 +170,7 @@ template<typename T> class ThreadSafeDeque
      */
     void push_back(const T &item)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container.push_back(item);
     }
@@ -183,7 +183,7 @@ template<typename T> class ThreadSafeDeque
      */
     void push_back(const std::vector<T> &items)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         for (const auto &item : items)
         {
@@ -198,7 +198,7 @@ template<typename T> class ThreadSafeDeque
      */
     void push_front(const T &item)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container.push_front(item);
     }
@@ -212,7 +212,7 @@ template<typename T> class ThreadSafeDeque
      */
     void push_front(const std::vector<T> &items, bool preserve_order = true)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         auto temp = items;
 
@@ -240,7 +240,7 @@ template<typename T> class ThreadSafeDeque
      */
     void resize(size_t count)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container.resize(count);
     }
@@ -259,7 +259,7 @@ template<typename T> class ThreadSafeDeque
      */
     void resize(size_t count, const T &item)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container.resise(count, item);
     }
@@ -273,7 +273,7 @@ template<typename T> class ThreadSafeDeque
      */
     void set(size_t position, const T &item)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container[position] = item;
     }
@@ -283,7 +283,7 @@ template<typename T> class ThreadSafeDeque
      */
     void shrink_to_fit()
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container.shrink_to_fit();
     }
@@ -295,7 +295,7 @@ template<typename T> class ThreadSafeDeque
      */
     size_t size() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.size();
     }
@@ -305,7 +305,7 @@ template<typename T> class ThreadSafeDeque
      */
     void skip_back()
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         if (m_container.empty())
         {
@@ -320,7 +320,7 @@ template<typename T> class ThreadSafeDeque
      */
     void skip_front()
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         if (m_container.empty())
         {
@@ -334,7 +334,7 @@ template<typename T> class ThreadSafeDeque
   private:
     std::deque<T> m_container;
 
-    mutable std::mutex m_mutex;
+    mutable std::shared_mutex m_mutex;
 };
 
 

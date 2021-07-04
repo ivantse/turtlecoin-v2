@@ -5,8 +5,8 @@
 #ifndef TURTLECOIN_THREAD_SAFE_PRIORITY_QUEUE_H
 #define TURTLECOIN_THREAD_SAFE_PRIORITY_QUEUE_H
 
-#include <mutex>
 #include <queue>
+#include <shared_mutex>
 #include <thread>
 #include <vector>
 
@@ -16,13 +16,26 @@ template<typename T, typename Comparison = std::less<T>> class ThreadSafePriorit
     ThreadSafePriorityQueue() {}
 
     /**
+     * Removes all elements from the container
+     */
+    void clear()
+    {
+        std::unique_lock lock(m_mutex);
+
+        while (!m_container.empty())
+        {
+            m_container.pop();
+        }
+    }
+
+    /**
      * Returns whether the queue is empty
      *
      * @return
      */
     bool empty() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.empty();
     }
@@ -34,7 +47,7 @@ template<typename T, typename Comparison = std::less<T>> class ThreadSafePriorit
      */
     T pop()
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         auto item = m_container.top();
 
@@ -50,7 +63,7 @@ template<typename T, typename Comparison = std::less<T>> class ThreadSafePriorit
      */
     void push(const T &item)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container.push(item);
     }
@@ -63,7 +76,7 @@ template<typename T, typename Comparison = std::less<T>> class ThreadSafePriorit
      */
     void push(const std::vector<T> &items)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         for (const auto &item : items)
         {
@@ -78,7 +91,7 @@ template<typename T, typename Comparison = std::less<T>> class ThreadSafePriorit
      */
     size_t size() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.size();
     }
@@ -90,7 +103,7 @@ template<typename T, typename Comparison = std::less<T>> class ThreadSafePriorit
      */
     T top() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.top();
     }
@@ -98,7 +111,7 @@ template<typename T, typename Comparison = std::less<T>> class ThreadSafePriorit
   private:
     std::priority_queue<T, std::vector<T>, Comparison> m_container;
 
-    mutable std::mutex m_mutex;
+    mutable std::shared_mutex m_mutex;
 };
 
 #endif

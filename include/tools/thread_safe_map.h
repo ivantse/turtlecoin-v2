@@ -6,7 +6,7 @@
 #define TURTLECOIN_THREAD_SAFE_MAP_H
 
 #include <map>
-#include <mutex>
+#include <shared_mutex>
 #include <thread>
 
 template<typename L, typename R> class ThreadSafeMap
@@ -22,7 +22,7 @@ template<typename L, typename R> class ThreadSafeMap
      */
     R at(L key) const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.at(key);
     }
@@ -32,7 +32,7 @@ template<typename L, typename R> class ThreadSafeMap
      */
     void clear()
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container.clear();
     }
@@ -43,9 +43,9 @@ template<typename L, typename R> class ThreadSafeMap
      * @param key
      * @return
      */
-    bool contains(const L &key)
+    bool contains(const L &key) const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.count(key) != 0;
     }
@@ -56,9 +56,9 @@ template<typename L, typename R> class ThreadSafeMap
      *
      * @param func
      */
-    void each(const std::function<void(const L &, const R &)> &func)
+    void each(const std::function<void(const L &, const R &)> &func) const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         for (const auto &[key, value] : m_container)
         {
@@ -74,7 +74,7 @@ template<typename L, typename R> class ThreadSafeMap
      */
     void eachref(const std::function<void(L &, R &)> &func)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         for (auto &[key, value] : m_container)
         {
@@ -89,7 +89,7 @@ template<typename L, typename R> class ThreadSafeMap
      */
     bool empty() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.empty();
     }
@@ -101,22 +101,9 @@ template<typename L, typename R> class ThreadSafeMap
      */
     void erase(const L &key)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container.erase(key);
-    }
-
-    /**
-     * finds element with specific key
-     *
-     * @param key
-     * @return
-     */
-    auto find(const L &key)
-    {
-        std::scoped_lock lock(m_mutex);
-
-        return m_container.find(key);
     }
 
     /**
@@ -127,7 +114,7 @@ template<typename L, typename R> class ThreadSafeMap
      */
     void insert(const L &key, const R &value)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container.insert({key, value});
     }
@@ -139,7 +126,7 @@ template<typename L, typename R> class ThreadSafeMap
      */
     void insert(const std::tuple<L, R> &kv)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container.insert(kv);
     }
@@ -152,7 +139,7 @@ template<typename L, typename R> class ThreadSafeMap
      */
     void insert_or_assign(const L &key, const R &value)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container.insert_or_assign(key, value);
     }
@@ -164,7 +151,7 @@ template<typename L, typename R> class ThreadSafeMap
      */
     void insert_or_assign(const std::tuple<L, R> &kv)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         const auto [key, value] = kv;
 
@@ -178,7 +165,7 @@ template<typename L, typename R> class ThreadSafeMap
      */
     size_t max_size() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.max_size();
     }
@@ -190,7 +177,7 @@ template<typename L, typename R> class ThreadSafeMap
      */
     size_t size() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.size();
     }
@@ -198,7 +185,7 @@ template<typename L, typename R> class ThreadSafeMap
   private:
     std::map<L, R> m_container;
 
-    mutable std::mutex m_mutex;
+    mutable std::shared_mutex m_mutex;
 };
 
 #endif

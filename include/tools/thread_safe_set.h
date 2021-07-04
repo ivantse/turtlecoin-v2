@@ -5,8 +5,8 @@
 #ifndef TURTLECOIN_THREAD_SAFE_SET_H
 #define TURTLECOIN_THREAD_SAFE_SET_H
 
-#include <mutex>
 #include <set>
+#include <shared_mutex>
 #include <thread>
 
 template<typename T> class ThreadSafeSet
@@ -19,7 +19,7 @@ template<typename T> class ThreadSafeSet
      */
     void clear()
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container.clear();
     }
@@ -30,9 +30,9 @@ template<typename T> class ThreadSafeSet
      * @param key
      * @return
      */
-    bool contains(const T &key)
+    bool contains(const T &key) const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.count(key) != 0;
     }
@@ -43,9 +43,9 @@ template<typename T> class ThreadSafeSet
      *
      * @param func
      */
-    void each(const std::function<void(const T &)> &func)
+    void each(const std::function<void(const T &)> &func) const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         for (const auto &elem : m_container)
         {
@@ -61,7 +61,7 @@ template<typename T> class ThreadSafeSet
      */
     void eachref(const std::function<void(T &)> &func)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         for (auto &elem : m_container)
         {
@@ -76,7 +76,7 @@ template<typename T> class ThreadSafeSet
      */
     bool empty() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.empty();
     }
@@ -88,22 +88,9 @@ template<typename T> class ThreadSafeSet
      */
     void erase(const T &key)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container.erase(key);
-    }
-
-    /**
-     * finds element with specific key
-     *
-     * @param key
-     * @return
-     */
-    auto find(const T &key)
-    {
-        std::scoped_lock lock(m_mutex);
-
-        return m_container.find(key);
     }
 
     /**
@@ -113,7 +100,7 @@ template<typename T> class ThreadSafeSet
      */
     void insert(const T &key)
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
 
         m_container.insert(key);
     }
@@ -125,7 +112,7 @@ template<typename T> class ThreadSafeSet
      */
     size_t max_size() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.max_size();
     }
@@ -137,7 +124,7 @@ template<typename T> class ThreadSafeSet
      */
     size_t size() const
     {
-        std::scoped_lock lock(m_mutex);
+        std::shared_lock lock(m_mutex);
 
         return m_container.size();
     }
@@ -145,7 +132,7 @@ template<typename T> class ThreadSafeSet
   private:
     std::set<T> m_container;
 
-    mutable std::mutex m_mutex;
+    mutable std::shared_mutex m_mutex;
 };
 
 #endif
