@@ -227,7 +227,7 @@ namespace P2P
         catch (const std::exception &e)
         {
             // TODO: if we cannot handle the message, we need to disconnect whoever sent it SOMEHOW
-            m_logger->trace("Could not handle incoming P2P message: {}", e.what());
+            m_logger->trace("Could not handle incoming P2P message: {0}", e.what());
         }
     }
 
@@ -239,7 +239,9 @@ namespace P2P
     {
         if (is_server && m_completed_handshake.contains(from))
         {
-            throw std::runtime_error("Handshake already completed, protocol violation.");
+            m_logger->trace("Handshake already completed, protocol violation: {0}", from.to_string());
+
+            return;
         }
 
         // we don't talk to ourselves
@@ -251,13 +253,19 @@ namespace P2P
         // we don't talk to peers that are not speaking at least the minimum version
         if (packet.version < Configuration::P2P::MINIMUM_VERSION)
         {
-            throw std::runtime_error("Peer is running the wrong version of the P2P stack");
+            m_logger->trace("Peer is running the wrong version of the P2P stack: {0}", from.to_string());
+
+            return;
         }
 
         if (packet.peers.size() > Configuration::P2P::MAXIMUM_PEERS_EXCHANGED)
         {
-            throw std::runtime_error(
-                "Handshake contains more than the maximum number of peers accepted, protocol violation.");
+            m_logger->trace(
+                "Handshake contains more than the maximum number of peers accepted [{0}]: {1}",
+                std::to_string(packet.peers.size()),
+                from.to_string());
+
+            return;
         }
 
         {
@@ -308,7 +316,9 @@ namespace P2P
 
         if (!m_completed_handshake.contains(from))
         {
-            throw std::runtime_error("Handshake not completed first, protocol violation.");
+            m_logger->trace("Handshake not completed first, protocol violation: {0}", from.to_string());
+
+            return;
         }
 
         // we don't talk to ourselves
@@ -320,7 +330,9 @@ namespace P2P
         // we don't talk to peers that are not speaking at least the minimum version
         if (packet.version < Configuration::P2P::MINIMUM_VERSION)
         {
-            throw std::runtime_error("Peer is running the wrong version of the P2P stack");
+            m_logger->trace("Peer is running the wrong version of the P2P stack: {0}", from.to_string());
+
+            return;
         }
 
         // add the message to the stack for processing
@@ -342,7 +354,9 @@ namespace P2P
 
         if (!m_completed_handshake.contains(from))
         {
-            throw std::runtime_error("Handshake not completed first, protocol violation.");
+            m_logger->trace("Handshake not completed first, protocol violation: {0}", from.to_string());
+
+            return;
         }
 
         // we don't talk to ourselves
@@ -354,7 +368,9 @@ namespace P2P
         // we don't talk to peers that are not speaking at least the minimum version
         if (packet.version < Configuration::P2P::MINIMUM_VERSION)
         {
-            throw std::runtime_error("Peer is running the wrong version of the P2P stack");
+            m_logger->trace("Peer is running the wrong version of the P2P stack: {0}", from.to_string());
+
+            return;
         }
 
         packet_keepalive_t reply_keepalive(m_peer_db->peer_id());
@@ -374,7 +390,9 @@ namespace P2P
     {
         if (is_server && !m_completed_handshake.contains(from))
         {
-            throw std::runtime_error("Handshake not completed first, protocol violation.");
+            m_logger->trace("Handshake not completed first, protocol violation: {0}", from.to_string());
+
+            return;
         }
 
         // we don't talk to ourselves
@@ -386,7 +404,9 @@ namespace P2P
         // we don't talk to peers that are not speaking at least the minimum version
         if (packet.version < Configuration::P2P::MINIMUM_VERSION)
         {
-            throw std::runtime_error("Peer is running the wrong version of the P2P stack");
+            m_logger->trace("Peer is running the wrong version of the P2P stack: {0}", from.to_string());
+
+            return;
         }
 
         {
