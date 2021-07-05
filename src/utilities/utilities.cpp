@@ -7,12 +7,105 @@
 #include "colors.h"
 
 #include <algorithm>
-#include <iomanip>
 #include <iostream>
-#include <sstream>
+#include <network/ip_address.h>
+#include <serializer.h>
 
 namespace Utilities
 {
+    std::tuple<std::string, uint16_t, crypto_hash_t> normalize_host_port(std::string host)
+    {
+        uint16_t port = 0;
+
+        /**
+         * ZMQ likes to include <proto>:// at the front of all host strings
+         * we need to remove it for our own sanity as we only support TCP today
+         */
+        {
+            const auto token = std::string("//");
+
+            const auto pos = host.find(token);
+
+            if (pos != std::string::npos)
+            {
+                host = host.substr(pos + token.size());
+            }
+        }
+
+        /**
+         * If there is a semicolon in the host, then it could contain the port number
+         */
+        if (host.find(':') != std::string::npos)
+        {
+            // separate by the semicolon
+            auto parts = str_split(host, ':');
+
+            // grab the past one as a possible port
+            const auto _port = parts.back();
+
+            // does the "port" contain a .? If not, then it's likely a port
+            if (_port.find('.') == std::string::npos)
+            {
+                // try to convert the string to a uint16_t
+                try
+                {
+                    port = std::stoi(_port);
+
+                    parts.pop_back();
+                }
+                catch (...)
+                {
+                }
+            }
+
+            // join the host back together
+            host = str_join(parts, ':');
+        }
+
+        // load the host into the v6 parser to help normalize it
+        {
+            auto addr = ip_address_t(std::string(host));
+
+            host = addr.to_string();
+        }
+
+        /**
+         * if we still contain semicolon and we don't start and end with brackets,
+         * then we are very likely using a v6 representation and we need to clean
+         * it up so that it can be parsed by the parser library
+         */
+        if (host.find(':') != std::string::npos && host.find('[') == std::string::npos
+            && host.find(']') == std::string::npos)
+        {
+            host = "[" + host + "]";
+        }
+
+        serializer_t writer;
+
+        writer.bytes(host.data(), host.size());
+
+        writer.varint(port);
+
+        const auto hash = Crypto::Hashing::sha3(writer.data(), writer.size());
+
+        return {host, port, hash};
+    }
+
+    std::tuple<std::string, uint16_t, crypto_hash_t> normalize_host_port(const std::string &host, uint16_t port)
+    {
+        const auto [_host, _port, _hash] = normalize_host_port(host);
+
+        serializer_t writer;
+
+        writer.bytes(_host.data(), _host.size());
+
+        writer.varint(port);
+
+        const auto hash = Crypto::Hashing::sha3(writer.data(), writer.size());
+
+        return {_host, port, hash};
+    }
+
     void print_table(std::vector<std::string> rows, bool has_header)
     {
         size_t long_left = 0;

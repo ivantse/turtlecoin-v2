@@ -27,11 +27,15 @@ struct ip_address_t : virtual BaseTypes::IStorable
         }
 
         m_address = addr;
+
+        normalize_v4_embedded();
     }
 
     ip_address_t(deserializer_t &reader)
     {
         deserialize(reader);
+
+        normalize_v4_embedded();
     }
 
     ip_address_t(const std::vector<uint8_t> &data)
@@ -39,6 +43,8 @@ struct ip_address_t : virtual BaseTypes::IStorable
         deserializer_t reader(data);
 
         deserialize(reader);
+
+        normalize_v4_embedded();
     }
 
     JSON_OBJECT_CONSTRUCTORS(ip_address_t, fromJSON);
@@ -53,6 +59,8 @@ struct ip_address_t : virtual BaseTypes::IStorable
         }
 
         m_address.flags = reader.varint<uint32_t>();
+
+        normalize_v4_embedded();
     }
 
     JSON_FROM_FUNC(fromJSON) override
@@ -71,6 +79,8 @@ struct ip_address_t : virtual BaseTypes::IStorable
         }
 
         m_address = address;
+
+        normalize_v4_embedded();
     }
 
     /**
@@ -168,6 +178,34 @@ struct ip_address_t : virtual BaseTypes::IStorable
     }
 
   private:
+    void normalize_v4_embedded()
+    {
+        /**
+         * If we read a v4 address and it reads it as compatible (xxx.xxx.xxx.xxx)
+         * we need to convert it to embedded (::ffff:xxx.xxx.xxx.xxx) for our own
+         * sanity
+         */
+        if (m_address.flags & IPParser::ipv6_flag_t::IPV6_FLAG_IPV4_COMPAT)
+        {
+            m_address.flags |= IPParser::ipv6_flag_t::IPV6_FLAG_IPV4_EMBED;
+
+            m_address.flags &= ~(IPParser::ipv6_flag_t::IPV6_FLAG_IPV4_COMPAT);
+
+            auto &comp = m_address.address.components;
+
+            // shift the byes to the end
+            for (size_t i = 0, k = IPV4_EMBED_INDEX; i < IPV4_NUM_COMPONENTS; ++i, ++k)
+            {
+                comp[k] = comp[i];
+
+                comp[i] = 0;
+            }
+
+            // set the preceding byte to max value
+            comp[IPV4_EMBED_INDEX - 1] = 0xffff;
+        }
+    }
+
     IPParser::ipv6_address_full_t m_address = {};
 };
 

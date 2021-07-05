@@ -5,11 +5,31 @@
 #ifndef TURTLECOIN_UTILITIES_H
 #define TURTLECOIN_UTILITIES_H
 
+#include <hashing.h>
 #include <string>
 #include <vector>
 
 namespace Utilities
 {
+    /**
+     * Normalizes the given string based host (with or without port #)
+     * into it's host portion, the port, and a hash of the combination of the two
+     *
+     * @param host
+     * @return
+     */
+    std::tuple<std::string, uint16_t, crypto_hash_t> normalize_host_port(std::string host);
+
+    /**
+     * Normalizes the given string based host (with or without port #)
+     * into it's host portion, the port, and a hash of the combination of the two
+     *
+     * @param host
+     * @param port
+     * @return
+     */
+    std::tuple<std::string, uint16_t, crypto_hash_t> normalize_host_port(const std::string &host, uint16_t port);
+
     /**
      * Prints the given vector of strings as a table
      *

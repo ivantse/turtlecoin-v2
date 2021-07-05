@@ -24,10 +24,6 @@ namespace Networking
 
     [[nodiscard]] std::tuple<Error, std::string> zmq_generate_public_key(const std::string &secret_key);
 
-    [[nodiscard]] crypto_hash_t zmq_host_port_hash(const std::string &host, const uint16_t &port);
-
-    [[nodiscard]] std::string zmq_sanitize_host(std::string host);
-
     class zmq_connection_monitor : public zmq::monitor_t
     {
       public:

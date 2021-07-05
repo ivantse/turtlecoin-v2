@@ -5,6 +5,7 @@
 #include "p2p_node.h"
 
 #include <tools/thread_helper.h>
+#include <utilities.h>
 
 using namespace BaseTypes;
 using namespace Types::Network;
@@ -92,11 +93,9 @@ namespace P2P
         return results;
     }
 
-    Error Node::connect(const std::string &unsafe_host, const uint16_t &port)
+    Error Node::connect(const std::string &unsafe_host, const uint16_t &unsafe_port)
     {
-        const auto host = Networking::zmq_sanitize_host(unsafe_host);
-
-        const auto hash = Networking::zmq_host_port_hash(host, port);
+        const auto [host, port, hash] = Utilities::normalize_host_port(unsafe_host, unsafe_port);
 
         if (m_clients.contains(hash))
         {

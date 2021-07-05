@@ -4,6 +4,8 @@
 
 #include "zmq_shared.h"
 
+#include <utilities.h>
+
 namespace Networking
 {
     std::tuple<Error, std::string, std::string> zmq_generate_keypair()
@@ -35,35 +37,6 @@ namespace Networking
         return {MAKE_ERROR(SUCCESS), public_key};
     }
 
-    crypto_hash_t zmq_host_port_hash(const std::string &host, const uint16_t &port)
-    {
-        serializer_t writer;
-
-        const auto _host = zmq_sanitize_host(host);
-
-        writer.bytes(_host.data(), _host.size());
-
-        writer.varint(port);
-
-        return Crypto::Hashing::sha3(writer.data(), writer.size());
-    }
-
-    std::string zmq_sanitize_host(std::string host)
-    {
-        {
-            const auto token = std::string("//");
-
-            const auto pos = host.find(token);
-
-            if (pos != std::string::npos)
-            {
-                host = host.substr(pos + token.size());
-            }
-        }
-
-        return host;
-    }
-
     zmq_connection_monitor::zmq_connection_monitor()
     {
         m_connected_peers = std::make_shared<ThreadSafeSet<std::string>>();
@@ -85,7 +58,9 @@ namespace Networking
 
     void zmq_connection_monitor::on_event_connected(const zmq_event_t &event, const char *addr)
     {
-        const auto host = zmq_sanitize_host(addr);
+        auto [host, port, hash] = Utilities::normalize_host_port(addr);
+
+        host = host + ":" + std::to_string(port);
 
         m_connected_peers->insert(host);
 
@@ -98,7 +73,9 @@ namespace Networking
 
     void zmq_connection_monitor::on_event_connect_delayed(const zmq_event_t &event, const char *addr)
     {
-        const auto host = zmq_sanitize_host(addr);
+        auto [host, port, hash] = Utilities::normalize_host_port(addr);
+
+        host = host + ":" + std::to_string(port);
 
         m_delayed_peers->insert(host);
 
@@ -109,7 +86,9 @@ namespace Networking
 
     void zmq_connection_monitor::on_event_connect_retried(const zmq_event_t &event, const char *addr)
     {
-        const auto host = zmq_sanitize_host(addr);
+        auto [host, port, hash] = Utilities::normalize_host_port(addr);
+
+        host = host + ":" + std::to_string(port);
 
         m_retried_peers->insert(host);
 
@@ -130,14 +109,18 @@ namespace Networking
 
     void zmq_connection_monitor::on_event_closed(const zmq_event_t &event, const char *addr)
     {
-        const auto host = zmq_sanitize_host(addr);
+        auto [host, port, hash] = Utilities::normalize_host_port(addr);
+
+        host = host + ":" + std::to_string(port);
 
         m_connected_peers->erase(host);
     }
 
     void zmq_connection_monitor::on_event_disconnected(const zmq_event_t &event, const char *addr)
     {
-        const auto host = zmq_sanitize_host(addr);
+        auto [host, port, hash] = Utilities::normalize_host_port(addr);
+
+        host = host + ":" + std::to_string(port);
 
         m_connected_peers->erase(host);
     }

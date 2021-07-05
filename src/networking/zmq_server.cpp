@@ -7,6 +7,7 @@
 #include "zmq_addon.hpp"
 
 #include <tools/thread_helper.h>
+#include <utilities.h>
 
 namespace Networking
 {
@@ -151,7 +152,13 @@ namespace Networking
 
                     auto routable_msg = zmq_message_envelope_t(m_identity, from, data);
 
-                    routable_msg.peer_address = ZMQ_GETS(message, "Peer-Address");
+                    {
+                        const auto unsafe_host = ZMQ_GETS(message, "Peer-Address");
+
+                        const auto [host, port, hash] = Utilities::normalize_host_port(unsafe_host);
+
+                        routable_msg.peer_address = host;
+                    }
 
                     if (!m_connections.contains(from))
                     {

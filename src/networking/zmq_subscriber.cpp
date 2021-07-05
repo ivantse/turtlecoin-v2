@@ -5,6 +5,7 @@
 #include "zmq_subscriber.h"
 
 #include <tools/thread_helper.h>
+#include <utilities.h>
 #include <zmq_addon.hpp>
 
 namespace Networking
@@ -164,7 +165,13 @@ namespace Networking
 
                     routable_msg.subject = subject;
 
-                    routable_msg.peer_address = ZMQ_GETS(message, "Peer-Address");
+                    {
+                        const auto unsafe_host = ZMQ_GETS(message, "Peer-Address");
+
+                        const auto [host, port, hash] = Utilities::normalize_host_port(unsafe_host);
+
+                        routable_msg.peer_address = host;
+                    }
 
                     m_incoming_msgs.push(routable_msg);
 

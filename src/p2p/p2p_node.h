@@ -177,11 +177,11 @@ namespace P2P
         /**
          * Connects a new client instance to a server
          *
-         * @param host
-         * @param port
+         * @param unsafe_host
+         * @param unsafe_port
          * @return
          */
-        Error connect(const std::string &host, const uint16_t &port);
+        Error connect(const std::string &unsafe_host, const uint16_t &unsafe_port);
 
         /**
          * The connection manager thread
