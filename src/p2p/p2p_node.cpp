@@ -182,7 +182,7 @@ namespace P2P
 
                         auto error = connect(peer.address.to_string(), peer.port);
 
-                        if (error)
+                        if (error && error != P2P_DUPE_CONNECT)
                         {
                             m_logger->debug("Error connecting to peer: {0}", error.to_string());
                         }
@@ -579,7 +579,7 @@ namespace P2P
             {
                 auto error = connect(seed_node.host, seed_node.port);
 
-                if (!error)
+                if (!error && error != P2P_DUPE_CONNECT)
                 {
                     connected_to_seed = true;
                 }
@@ -593,7 +593,7 @@ namespace P2P
                 auto error =
                     connect(seed.to_string(), (seed.port() != 0) ? seed.port() : Configuration::P2P::DEFAULT_BIND_PORT);
 
-                if (!error)
+                if (!error && error != P2P_DUPE_CONNECT)
                 {
                     connected_to_seed = true;
                 }
