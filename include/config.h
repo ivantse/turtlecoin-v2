@@ -135,7 +135,10 @@ namespace Configuration
          * Defines the list of P2P bootstrap/seed nodes for which we will attempt
          * to connect to if our peer list database is empty
          */
-        const std::vector<SeedNode> SEED_NODES = {{"165.227.252.132", 12897}};
+        const std::vector<SeedNode> SEED_NODES = {
+            {"161.35.102.211", 12897},
+            {"128.199.32.206", 12897},
+            {"139.59.120.178", 12897}};
 
         /**
          * Defines the P2P Network ID that we find interesting
