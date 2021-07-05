@@ -101,7 +101,7 @@ namespace Networking
     {
         std::vector<std::string> results;
 
-        m_monitor.connected()->each([&](const std::string &elem) { results.emplace_back(elem); });
+        m_connections.each([&](const auto &id, const auto &address) { results.emplace_back(address); });
 
         return results;
     }
@@ -145,15 +145,6 @@ namespace Networking
 
                     const auto from = crypto_hash_t(data);
 
-                    if (!m_connections.contains(from))
-                    {
-                        m_logger->trace("Adding registered connection for: {0}", from.to_string());
-
-                        m_connections.insert(from);
-
-                        m_logger->trace("Registered connection for: {0}", from.to_string());
-                    }
-
                     message = messages.pop();
 
                     data = ZMQ_MSG_TO_VECTOR(message);
@@ -161,6 +152,15 @@ namespace Networking
                     auto routable_msg = zmq_message_envelope_t(m_identity, from, data);
 
                     routable_msg.peer_address = ZMQ_GETS(message, "Peer-Address");
+
+                    if (!m_connections.contains(from))
+                    {
+                        m_logger->trace("Adding registered connection for: {0}", from.to_string());
+
+                        m_connections.insert(from, routable_msg.peer_address);
+
+                        m_logger->trace("Registered connection for: {0}", from.to_string());
+                    }
 
                     m_incoming_msgs.push(routable_msg);
 
@@ -218,7 +218,7 @@ namespace Networking
                 if (message.to.empty())
                 {
                     m_connections.each(
-                        [&](const auto &to)
+                        [&](const auto &to, const auto &address)
                         {
                             try
                             {

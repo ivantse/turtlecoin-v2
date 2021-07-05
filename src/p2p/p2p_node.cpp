@@ -306,7 +306,7 @@ namespace P2P
             return;
         }
 
-        if (m_completed_handshake.contains(from))
+        if (!m_completed_handshake.contains(from))
         {
             throw std::runtime_error("Handshake not completed first, protocol violation.");
         }
@@ -340,7 +340,7 @@ namespace P2P
             return;
         }
 
-        if (m_completed_handshake.contains(from))
+        if (!m_completed_handshake.contains(from))
         {
             throw std::runtime_error("Handshake not completed first, protocol violation.");
         }
@@ -372,7 +372,7 @@ namespace P2P
         const Types::Network::packet_peer_exchange_t &packet,
         bool is_server)
     {
-        if (is_server && m_completed_handshake.contains(from))
+        if (is_server && !m_completed_handshake.contains(from))
         {
             throw std::runtime_error("Handshake not completed first, protocol violation.");
         }

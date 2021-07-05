@@ -12,8 +12,8 @@
 #include <config.h>
 #include <errors.h>
 #include <network/zmq_message_envelope.h>
+#include <tools/thread_safe_map.h>
 #include <tools/thread_safe_queue.h>
-#include <tools/thread_safe_set.h>
 #include <zmq.hpp>
 
 using namespace Types::Network;
@@ -144,7 +144,7 @@ namespace Networking
 
         mutable std::mutex m_socket_mutex;
 
-        ThreadSafeSet<crypto_hash_t> m_connections;
+        ThreadSafeMap<crypto_hash_t, std::string> m_connections;
 
         crypto_hash_t m_identity;
 

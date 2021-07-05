@@ -50,11 +50,15 @@ namespace Networking
 
     std::string zmq_sanitize_host(std::string host)
     {
-        const auto token = std::string("::ffff:");
-
-        if (host.find(token) != std::string::npos)
         {
-            host = host.substr(token.size());
+            const auto token = std::string("//");
+
+            const auto pos = host.find(token);
+
+            if (pos != std::string::npos)
+            {
+                host = host.substr(pos + token.size());
+            }
         }
 
         return host;
@@ -81,31 +85,37 @@ namespace Networking
 
     void zmq_connection_monitor::on_event_connected(const zmq_event_t &event, const char *addr)
     {
-        m_connected_peers->insert(addr);
+        const auto host = zmq_sanitize_host(addr);
 
-        m_delayed_peers->erase(addr);
+        m_connected_peers->insert(host);
 
-        m_retried_peers->erase(addr);
+        m_delayed_peers->erase(host);
+
+        m_retried_peers->erase(host);
 
         cv_connected.notify_all();
     }
 
     void zmq_connection_monitor::on_event_connect_delayed(const zmq_event_t &event, const char *addr)
     {
-        m_delayed_peers->insert(addr);
+        const auto host = zmq_sanitize_host(addr);
 
-        m_retried_peers->erase(addr);
+        m_delayed_peers->insert(host);
 
-        m_connected_peers->erase(addr);
+        m_retried_peers->erase(host);
+
+        m_connected_peers->erase(host);
     }
 
     void zmq_connection_monitor::on_event_connect_retried(const zmq_event_t &event, const char *addr)
     {
-        m_retried_peers->insert(addr);
+        const auto host = zmq_sanitize_host(addr);
 
-        m_delayed_peers->erase(addr);
+        m_retried_peers->insert(host);
 
-        m_connected_peers->erase(addr);
+        m_delayed_peers->erase(host);
+
+        m_connected_peers->erase(host);
     }
 
     void zmq_connection_monitor::on_event_listening(const zmq_event_t &event, const char *addr)
@@ -115,17 +125,21 @@ namespace Networking
 
     void zmq_connection_monitor::on_event_accepted(const zmq_event_t &event, const char *addr)
     {
-        m_connected_peers->insert(addr);
+        // do nothing
     }
 
     void zmq_connection_monitor::on_event_closed(const zmq_event_t &event, const char *addr)
     {
-        m_connected_peers->erase(addr);
+        const auto host = zmq_sanitize_host(addr);
+
+        m_connected_peers->erase(host);
     }
 
     void zmq_connection_monitor::on_event_disconnected(const zmq_event_t &event, const char *addr)
     {
-        m_connected_peers->erase(addr);
+        const auto host = zmq_sanitize_host(addr);
+
+        m_connected_peers->erase(host);
     }
 
     void zmq_connection_monitor::on_event_handshake_succeeded(const zmq_event_t &event, const char *addr)
