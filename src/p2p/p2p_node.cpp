@@ -492,7 +492,7 @@ namespace P2P
     {
         while (m_running)
         {
-            if (!m_server->messages().empty())
+            while (!m_server->messages().empty())
             {
                 const auto message = m_server->messages().pop();
 
@@ -502,7 +502,7 @@ namespace P2P
             m_clients.each(
                 [&](const auto &id, const auto &client)
                 {
-                    if (!client->messages().empty())
+                    while (!client->messages().empty())
                     {
                         const auto message = client->messages().pop();
 
