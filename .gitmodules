@@ -36,6 +36,3 @@
 [submodule "external/cpplinenoise"]
 	path = external/cpplinenoise
 	url = https://github.com/turtlecoin/cpp-linenoise
-[submodule "external/cryptopp"]
-	path = external/cryptopp
-	url = https://github.com/turtlecoin/cryptopp

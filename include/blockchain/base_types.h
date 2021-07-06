@@ -75,7 +75,7 @@ namespace BaseTypes
             return l_type;
         }
 
-        uint64_t version = 0;
+        uint64_t version = 1;
 
       protected:
         uint64_t l_type = 0;

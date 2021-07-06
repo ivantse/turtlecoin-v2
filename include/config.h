@@ -62,11 +62,6 @@ namespace Configuration
     const int DEFAULT_CONNECTION_TIMEOUT = 2'000;
 
     /**
-     * This is the GENESIS block creation timestamp (seconds since UNIX epoch)
-     */
-    const uint64_t GENESIS_BLOCK_TIMESTAMP = 1634788800;
-
-    /**
      * Our public address prefix
      */
     const uint64_t PUBLIC_ADDRESS_PREFIX = 0x6bb3b1d;
@@ -173,7 +168,7 @@ namespace Configuration
          * Defines the default number of PBKDF2 iterations performed during
          * password/key stretching
          */
-        const size_t PBKDF2_ITERATIONS = 10'000;
+        const size_t PBKDF2_ITERS = 10'000;
     } // namespace API
 
     namespace Consensus
@@ -223,7 +218,7 @@ namespace Configuration
          * Defines the default number of PBKDF2 iterations performed during
          * password/key stretching
          */
-        const size_t PBKDF2_ITERATIONS = 500'000;
+        const size_t PBKDF2_ITERS = 500'000;
     } // namespace Wallet
 
     namespace Transaction
@@ -256,6 +251,49 @@ namespace Configuration
          * of a normal transaction
          */
         const size_t MAXIMUM_EXTRA_SIZE = 1'024;
+
+        namespace Genesis
+        {
+            /**
+             * This is the GENESIS block creation timestamp (seconds since UNIX epoch)
+             */
+            const uint64_t TIMESTAMP = 1633492800;
+
+            /**
+             * The total amount of the genesis transaction in atomic units
+             */
+            const uint64_t AMOUNT = 1'255'065'60;
+
+            /**
+             * The amount of each output generates in the genesis transaction
+             *
+             * This is done this way to ensure that there are enough outputs created
+             * for full mixing at the start of the chain
+             */
+            const uint64_t OUTPUT_AMOUNT = AMOUNT / (RING_SIZE * 2);
+
+            static_assert(
+                OUTPUT_AMOUNT * (RING_SIZE * 2) == AMOUNT,
+                "Total output amount does not match the sum of aggregate output amounts in the genesis transaction.");
+
+            /**
+             * The genesis transaction private key
+             *
+             * TODO: Replace this with a new key before launch
+             *
+             */
+            const auto TX_PRIVATE_KEY =
+                crypto_secret_key_t("069a225e30af016280a14136ae94af095c269243e56d429496ba70c4f3d9440a");
+
+            /**
+             * The public wallet address to which the genesis transaction pays funds
+             *
+             * TODO: Replace this with the actual wallet before launch
+             *
+             */
+            const std::string DESTINATION_WALLET =
+                "TRTL268SaKHPD4cWQLh6UTjcLdkQiGu3zbZnshsfC8ikT3q2Y4jGJRoKTUQe5wBo3rNfNSSby7zQqXTWDEZczxTYXKfGcuLW6gM";
+        } // namespace Genesis
 
         namespace Fees
         {

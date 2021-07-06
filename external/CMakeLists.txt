@@ -2,7 +2,7 @@ set(UPNPC_BUILD_STATIC ON CACHE BOOL "Build static library")
 set(UPNPC_BUILD_SHARED OFF CACHE BOOL "Build shared library")
 set(UPNPC_BUILD_TESTS OFF CACHE BOOL "Build test executables")
 set(WITH_TLS OFF CACHE BOOL "[ZMQ] Use TLS for WSS support")
-set(WITH_LIBSODIUM OFF CACHE BOOL "[ZMQ] Use libsodium intead of build-in tweetnacl")
+set(WITH_LIBSODIUM OFF CACHE BOOL "[ZMQ] Use libsodium instead of built-in tweetnacl")
 set(WITH_DOC OFF CACHE BOOL "[ZMQ] Build Reference Guide documentation(requires DocBook)")
 set(WITH_DOCS OFF CACHE BOOL "[ZMQ] Build html docs")
 set(BUILD_SHARED OFF CACHE BOOL "[ZMQ] Whether or not to build teh shared object")
@@ -11,7 +11,6 @@ set(BUILD_TEST OFF CACHE BOOL "Build external test")
 
 add_subdirectory(cppfs)
 add_subdirectory(crypto)
-add_subdirectory(cryptopp)
 add_subdirectory(cxxfolders)
 add_subdirectory(ipv6-parse)
 add_subdirectory(lmdb)
@@ -25,7 +24,6 @@ target_include_directories(libminiupnpc-static PUBLIC miniupnp/miniupnpc)
 set_property(TARGET
     cppfs
     crypto-static
-    cryptopp-static
     ipv6-parser
     platform_folders
     lmdb
@@ -40,7 +38,6 @@ add_library(External INTERFACE)
 target_link_libraries(External INTERFACE
     cppfs
     crypto-static
-    cryptopp-static
     ipv6-parser
     platform_folders
     lmdb

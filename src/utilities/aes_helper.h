@@ -23,7 +23,7 @@ namespace Utilities::AES
     std::tuple<Error, std::string> decrypt(
         const std::string &input,
         const std::string &password,
-        size_t iterations = Configuration::Wallet::PBKDF2_ITERATIONS);
+        size_t iterations = Configuration::Wallet::PBKDF2_ITERS);
 
     /**
      * Encrypts the provided string using the supplied password into an encrypted string
@@ -35,7 +35,7 @@ namespace Utilities::AES
     std::string encrypt(
         const std::string &input,
         const std::string &password,
-        size_t iterations = Configuration::Wallet::PBKDF2_ITERATIONS);
+        size_t iterations = Configuration::Wallet::PBKDF2_ITERS);
 }; // namespace Utilities::AES
 
 #endif
