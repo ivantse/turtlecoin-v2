@@ -5,6 +5,10 @@
 #ifndef TURTLECOIN_CONFIG_H
 #define TURTLECOIN_CONFIG_H
 
+#ifndef THREAD_INTERVAL
+#define THREAD_INTERVAL 10
+#endif
+
 #include <crypto_types.h>
 #include <cstdint>
 #include <hashing.h>
@@ -33,7 +37,7 @@ namespace Configuration
 
         const size_t PATCH = 0;
 
-        const size_t BUILD = 0;
+        const size_t BUILD = 1;
     } // namespace Version
 
     /**
@@ -47,7 +51,7 @@ namespace Configuration
      *
      * NOTE: This value is expressed in milliseconds
      */
-    const int THREAD_POLLING_INTERVAL = 50; //
+    const int THREAD_POLLING_INTERVAL = THREAD_INTERVAL;
 
     /**
      * Defines how long we should wait for outbound connection attempts to

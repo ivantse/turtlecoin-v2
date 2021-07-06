@@ -18,7 +18,7 @@ int main(int argc, char **argv)
 
     auto logger = Logger::create_logger("", cli->log_level());
 
-    logger->warn("Walled Address Encoding Check");
+    logger->warn("Wallet Address Encoding Check");
 
     const auto [wallet_seed, words, timestamp] = Crypto::generate_wallet_seed();
 
