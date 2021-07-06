@@ -43,3 +43,42 @@ logger Logger::create_logger(const std::string &path, const logging_level &level
 
     return logger;
 }
+
+logging_level Logger::get_log_level(size_t level)
+{
+    switch (level)
+    {
+        case 0:
+            return spdlog::level::off;
+        case 1:
+            return spdlog::level::critical;
+        case 2:
+            return spdlog::level::err;
+        case 3:
+            return spdlog::level::warn;
+        case 4:
+            return spdlog::level::info;
+        case 5:
+            return spdlog::level::debug;
+        case 6:
+            return spdlog::level::trace;
+        default:
+            throw std::invalid_argument("Unknown log level supplied");
+    }
+}
+
+logging_level Logger::get_log_level(const std::string &level)
+{
+    size_t temp = 0;
+
+    try
+    {
+        temp = std::stoi(level);
+    }
+    catch (...)
+    {
+        throw std::invalid_argument("Logging level supplied is not a number");
+    }
+
+    return get_log_level(temp);
+}

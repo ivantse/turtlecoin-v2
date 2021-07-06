@@ -11,6 +11,7 @@
 #include <cppfs/FileHandle.h>
 #include <cppfs/fs.h>
 #include <credits.h>
+#include <logger.h>
 #include <platform_folders.h>
 
 namespace Utilities
@@ -132,37 +133,19 @@ namespace Utilities
                 exit(0);
             }
 
-            switch (m_parse_result["log-level"].as<size_t>())
+            try
             {
-                case 0:
-                    m_log_level = spdlog::level::off;
-                    break;
-                case 1:
-                    m_log_level = spdlog::level::critical;
-                    break;
-                case 2:
-                    m_log_level = spdlog::level::err;
-                    break;
-                case 3:
-                    m_log_level = spdlog::level::warn;
-                    break;
-                case 4:
-                    m_log_level = spdlog::level::info;
-                    break;
-                case 5:
-                    m_log_level = spdlog::level::debug;
-                    break;
-                case 6:
-                    m_log_level = spdlog::level::trace;
-                    break;
-                default:
-                    print_cli_header();
+                m_log_level = Logger::get_log_level(m_parse_result["log-level"].as<size_t>());
+            }
+            catch (...)
+            {
+                print_cli_header();
 
-                    std::cout << m_options.help({}) << std::endl;
+                std::cout << m_options.help({}) << std::endl;
 
-                    std::cout << COLOR::red << "Invalid log level specified" << COLOR::reset << std::endl << std::endl;
+                std::cout << COLOR::red << "Invalid log level specified" << COLOR::reset << std::endl << std::endl;
 
-                    exit(1);
+                exit(1);
             }
 
             print_cli_header();

@@ -169,7 +169,12 @@ struct ip_address_t : virtual BaseTypes::IStorable
     {
         const auto [error, str] = IPParser::ip_to_str(m_address);
 
-        return str;
+        if (error)
+        {
+            return std::string();
+        }
+
+        return "[" + str + "]";
     }
 
     [[nodiscard]] uint64_t type() const override

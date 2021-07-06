@@ -69,17 +69,6 @@ namespace Utilities
             host = addr.to_string();
         }
 
-        /**
-         * if we still contain semicolon and we don't start and end with brackets,
-         * then we are very likely using a v6 representation and we need to clean
-         * it up so that it can be parsed by the parser library
-         */
-        if (host.find(':') != std::string::npos && host.find('[') == std::string::npos
-            && host.find(']') == std::string::npos)
-        {
-            host = "[" + host + "]";
-        }
-
         serializer_t writer;
 
         writer.bytes(host.data(), host.size());

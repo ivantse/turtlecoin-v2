@@ -161,6 +161,32 @@ int main(int argc, char **argv)
             logger->info("Pruned peer list");
         });
 
+    console->register_command(
+        "set_log",
+        "Sets the log level to <#>",
+        [&](const std::vector<std::string> &args)
+        {
+            if (args.empty())
+            {
+                logger->error("Must supply a log level with this command [0-6]");
+
+                return;
+            }
+
+            try
+            {
+                const auto new_level = Logger::get_log_level(args.front());
+
+                logger->set_level(new_level);
+
+                logger->info("Changed logging level to: {0}", args.front());
+            }
+            catch (const std::exception &e)
+            {
+                logger->error("Could not set new logging level: {0}", e.what());
+            }
+        });
+
     logger->info("Starting seed node...");
 
     const auto error = server->start(seed_nodes);
