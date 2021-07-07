@@ -31,6 +31,14 @@
 #include "staking/stake.h"
 #include "staking/staker.h"
 
+#define USEVARIANT(id, obj) using id = std::decay_t<decltype(obj)>
+#define VARIANTC(left, right) std::is_same_v<left, right>
+#define VARIANT(left, right) constexpr(VARIANTC(left, right))
+#define COMMITED_USER_TX_VARIANT(left)                                                                  \
+    constexpr(                                                                                          \
+        VARIANTC(left, committed_normal_transaction_t) || VARIANTC(left, committed_stake_transaction_t) \
+        || VARIANTC(left, committed_recall_stake_transaction_t))
+
 namespace Types
 {
     namespace Blockchain
@@ -49,6 +57,10 @@ namespace Types
             uncommitted_stake_transaction_t,
             uncommitted_recall_stake_transaction_t>
             uncommitted_transaction_t;
+
+        typedef std::
+            variant<committed_normal_transaction_t, committed_recall_stake_transaction_t, committed_stake_transaction_t>
+                user_transaction_t;
 
         typedef BaseTypes::TransactionType TransactionType;
     } // namespace Blockchain

@@ -11,6 +11,7 @@
 
 #include <bulletproofsplus.h>
 #include <crypto_types.h>
+#include <errors.h>
 #include <ring_signature_clsag.h>
 #include <serializable.h>
 
@@ -98,7 +99,7 @@ namespace BaseTypes
 
             unlock_block = reader.varint<uint64_t>();
 
-            tx_public_key = reader.key<crypto_public_key_t>();
+            public_key = reader.key<crypto_public_key_t>();
         }
 
         void serialize_prefix(serializer_t &writer) const
@@ -107,7 +108,7 @@ namespace BaseTypes
 
             writer.varint(unlock_block);
 
-            writer.key(tx_public_key);
+            writer.key(public_key);
         }
 
         JSON_TO_FUNC(prefix_toJSON)
@@ -116,7 +117,7 @@ namespace BaseTypes
 
             U64_TO_JSON(unlock_block);
 
-            KEY_TO_JSON(tx_public_key);
+            KEY_TO_JSON(public_key);
         }
 
         JSON_FROM_FUNC(prefix_fromJSON)
@@ -127,11 +128,11 @@ namespace BaseTypes
 
             LOAD_U64_FROM_JSON(unlock_block);
 
-            LOAD_KEY_FROM_JSON(tx_public_key);
+            LOAD_KEY_FROM_JSON(public_key);
         }
 
         uint64_t unlock_block = 0;
-        crypto_public_key_t tx_public_key;
+        crypto_public_key_t public_key;
     };
 
     struct StakerOutput
@@ -185,7 +186,7 @@ namespace BaseTypes
         uint64_t amount = 0;
     };
 
-    struct TransactionOutput
+    struct TransactionOutput : virtual ICheckable
     {
         TransactionOutput() {}
 
@@ -239,6 +240,26 @@ namespace BaseTypes
         bool operator>=(const TransactionOutput &other) const
         {
             return (*this == other) || (*this > other);
+        }
+
+        [[nodiscard]] Error check_construction() const override
+        {
+            if (public_ephemeral.empty())
+            {
+                return MAKE_ERROR(TX_OUTPUT_PUBLIC_EPHEMERAL);
+            }
+
+            if (amount == 0)
+            {
+                return MAKE_ERROR(TX_OUTPUT_AMOUNT);
+            }
+
+            if (commitment.empty())
+            {
+                return MAKE_ERROR(TX_OUTPUT_COMMITMENT);
+            }
+
+            return MAKE_ERROR(SUCCESS);
         }
 
         void deserialize_output(deserializer_t &reader)
@@ -394,17 +415,10 @@ namespace BaseTypes
     {
         UncommittedTransactionSuffix() {}
 
-        [[nodiscard]] crypto_hash_t suffix_hash() const
-        {
-            serializer_t writer;
-
-            serialize_suffix(writer);
-
-            return Crypto::Hashing::sha3(writer.data(), writer.size());
-        }
-
         void deserialize_suffix(deserializer_t &reader)
         {
+            pseudo_commitments = reader.keyV<crypto_pedersen_commitment_t>();
+
             ring_participants = reader.keyV<crypto_hash_t>();
 
             signatures.clear();
@@ -421,8 +435,15 @@ namespace BaseTypes
             range_proof.deserialize(reader);
         }
 
+        [[nodiscard]] crypto_hash_t range_proof_hash() const
+        {
+            return range_proof.hash();
+        }
+
         void serialize_suffix(serializer_t &writer) const
         {
+            writer.key(pseudo_commitments);
+
             writer.key(ring_participants);
 
             writer.varint(signatures.size());
@@ -435,8 +456,28 @@ namespace BaseTypes
             range_proof.serialize(writer);
         }
 
+        [[nodiscard]] crypto_hash_t signature_hash() const
+        {
+            serializer_t writer;
+
+            writer.key(pseudo_commitments);
+
+            writer.key(ring_participants);
+
+            writer.varint(signatures.size());
+
+            for (const auto &signature : signatures)
+            {
+                signature.serialize(writer);
+            }
+
+            return Crypto::Hashing::sha3(writer.data(), writer.size());
+        }
+
         JSON_TO_FUNC(suffix_toJSON)
         {
+            KEYV_TO_JSON(pseudo_commitments);
+
             KEYV_TO_JSON(ring_participants);
 
             KEYV_TO_JSON(signatures);
@@ -449,6 +490,8 @@ namespace BaseTypes
         {
             JSON_OBJECT_OR_THROW();
 
+            LOAD_KEYV_FROM_JSON(pseudo_commitments);
+
             LOAD_KEYV_FROM_JSON(ring_participants);
 
             LOAD_KEYV_FROM_JSON(signatures);
@@ -458,6 +501,7 @@ namespace BaseTypes
             range_proof = crypto_bulletproof_plus_t(j, "range_proof");
         }
 
+        std::vector<crypto_pedersen_commitment_t> pseudo_commitments;
         std::vector<crypto_hash_t> ring_participants;
         std::vector<crypto_clsag_signature_t> signatures;
         crypto_bulletproof_plus_t range_proof;
@@ -469,32 +513,44 @@ namespace BaseTypes
 
         [[nodiscard]] crypto_hash_t suffix_hash() const
         {
-            return pruning_hash;
+            serializer_t writer;
+
+            serialize_suffix(writer);
+
+            return Crypto::Hashing::sha3(writer.data(), writer.size());
         }
 
         void deserialize_suffix(deserializer_t &reader)
         {
-            pruning_hash = reader.key<crypto_hash_t>();
+            signature_hash = reader.key<crypto_hash_t>();
+
+            range_proof_hash = reader.key<crypto_hash_t>();
         }
 
         void serialize_suffix(serializer_t &writer) const
         {
-            writer.key(pruning_hash);
+            writer.key(signature_hash);
+
+            writer.key(range_proof_hash);
         }
 
         JSON_TO_FUNC(suffix_toJSON)
         {
-            KEY_TO_JSON(pruning_hash);
+            KEY_TO_JSON(signature_hash);
+
+            KEY_TO_JSON(range_proof_hash);
         }
 
         JSON_FROM_FUNC(suffix_fromJSON)
         {
             JSON_OBJECT_OR_THROW();
 
-            LOAD_KEY_FROM_JSON(pruning_hash);
+            LOAD_KEY_FROM_JSON(signature_hash);
+
+            LOAD_KEY_FROM_JSON(range_proof_hash);
         }
 
-        crypto_hash_t pruning_hash;
+        crypto_hash_t signature_hash, range_proof_hash;
     };
 
     struct NormalTransactionData
@@ -507,36 +563,36 @@ namespace BaseTypes
             {
                 const auto count = reader.varint<uint64_t>();
 
-                tx_extra = reader.bytes(count);
+                extra = reader.bytes(count);
             }
         }
 
         void serialize_data(serializer_t &writer) const
         {
-            writer.varint(tx_extra.size());
+            writer.varint(extra.size());
 
-            writer.bytes(tx_extra);
+            writer.bytes(extra);
         }
 
         JSON_TO_FUNC(data_toJSON)
         {
-            writer.Key("tx_extra");
+            writer.Key("extra");
 
-            writer.Key(Crypto::StringTools::to_hex(tx_extra.data(), tx_extra.size()));
+            writer.Key(Crypto::StringTools::to_hex(extra.data(), extra.size()));
         }
 
         JSON_FROM_FUNC(data_fromJSON)
         {
             JSON_OBJECT_OR_THROW();
 
-            JSON_MEMBER_OR_THROW("tx_extra");
+            JSON_MEMBER_OR_THROW("extra");
 
-            const auto extra = get_json_string(j, "tx_extra");
+            const auto data = get_json_string(j, "extra");
 
-            tx_extra = Crypto::StringTools::from_hex(extra);
+            extra = Crypto::StringTools::from_hex(data);
         }
 
-        std::vector<uint8_t> tx_extra;
+        std::vector<uint8_t> extra;
     };
 
     struct StakeTransactionData

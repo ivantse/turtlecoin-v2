@@ -47,18 +47,18 @@ namespace Core
         return m_block_indexes->exists(block_index);
     }
 
-    std::tuple<Error, Types::Blockchain::block_t, std::vector<Types::Blockchain::transaction_t>>
+    std::tuple<Error, block_t, std::vector<transaction_t>>
         BlockchainStorage::get_block(const crypto_hash_t &block_hash) const
     {
         // go get the block
-        const auto [error, block] = m_blocks->get<crypto_hash_t, Types::Blockchain::block_t>(block_hash);
+        const auto [error, block] = m_blocks->get<crypto_hash_t, block_t>(block_hash);
 
         if (error)
         {
             return {MAKE_ERROR(DB_BLOCK_NOT_FOUND), {}, {}};
         }
 
-        std::vector<Types::Blockchain::transaction_t> transactions;
+        std::vector<transaction_t> transactions;
 
         // loop through the transactions in the block and retrieve them
         for (const auto &txn : block.transactions)
@@ -77,7 +77,7 @@ namespace Core
         return {MAKE_ERROR(SUCCESS), block, transactions};
     }
 
-    std::tuple<Error, Types::Blockchain::block_t, std::vector<Types::Blockchain::transaction_t>>
+    std::tuple<Error, block_t, std::vector<transaction_t>>
         BlockchainStorage::get_block(const uint64_t &block_index) const
     {
         // go get the block
@@ -130,7 +130,7 @@ namespace Core
     std::tuple<Error, uint64_t> BlockchainStorage::get_block_index(const crypto_hash_t &block_hash) const
     {
         // go get the block
-        const auto [error, block] = m_blocks->get<crypto_hash_t, Types::Blockchain::block_t>(block_hash);
+        const auto [error, block] = m_blocks->get<crypto_hash_t, block_t>(block_hash);
 
         if (error)
         {
@@ -140,10 +140,9 @@ namespace Core
         return {error, block.block_index};
     }
 
-    std::tuple<Error, std::vector<Types::Blockchain::transaction_output_t>>
-        BlockchainStorage::get_random_outputs(size_t count) const
+    std::tuple<Error, std::vector<transaction_output_t>> BlockchainStorage::get_random_outputs(size_t count) const
     {
-        std::vector<Types::Blockchain::transaction_output_t> results;
+        std::vector<transaction_output_t> results;
 
         if (m_transaction_outputs->count() < count)
         {
@@ -161,7 +160,7 @@ namespace Core
             const auto random_hash = Crypto::random_hash();
 
             const auto [error, key, value] =
-                cursor->get<crypto_hash_t, Types::Blockchain::transaction_output_t>(random_hash, MDB_SET_RANGE);
+                cursor->get<crypto_hash_t, transaction_output_t>(random_hash, MDB_SET_RANGE);
 
             if (error == LMDB_NOTFOUND || value.hash() != key)
             {
@@ -179,7 +178,7 @@ namespace Core
         return {MAKE_ERROR(SUCCESS), results};
     }
 
-    std::tuple<Error, Types::Blockchain::transaction_t, crypto_hash_t>
+    std::tuple<Error, transaction_t, crypto_hash_t>
         BlockchainStorage::get_transaction(const crypto_hash_t &txn_hash) const
     {
         // go get the transaction
@@ -206,25 +205,24 @@ namespace Core
         // depending on the transaction type, we'll return the proper structure
         switch (type)
         {
-            case Types::Blockchain::TransactionType::GENESIS:
-                return {MAKE_ERROR(SUCCESS), Types::Blockchain::genesis_transaction_t(reader), block_hash};
-            case Types::Blockchain::TransactionType::STAKER_REWARD:
-                return {MAKE_ERROR(SUCCESS), Types::Blockchain::staker_reward_transaction_t(reader), block_hash};
-            case Types::Blockchain::TransactionType::NORMAL:
-                return {MAKE_ERROR(SUCCESS), Types::Blockchain::committed_normal_transaction_t(reader), block_hash};
-            case Types::Blockchain::TransactionType::STAKE:
-                return {MAKE_ERROR(SUCCESS), Types::Blockchain::committed_stake_transaction_t(reader), block_hash};
-            case Types::Blockchain::TransactionType::RECALL_STAKE:
-                return {
-                    MAKE_ERROR(SUCCESS), Types::Blockchain::committed_recall_stake_transaction_t(reader), block_hash};
-            case Types::Blockchain::TransactionType::STAKE_REFUND:
-                return {MAKE_ERROR(SUCCESS), Types::Blockchain::stake_refund_transaction_t(reader), block_hash};
+            case TransactionType::GENESIS:
+                return {MAKE_ERROR(SUCCESS), genesis_transaction_t(reader), block_hash};
+            case TransactionType::STAKER_REWARD:
+                return {MAKE_ERROR(SUCCESS), staker_reward_transaction_t(reader), block_hash};
+            case TransactionType::NORMAL:
+                return {MAKE_ERROR(SUCCESS), committed_normal_transaction_t(reader), block_hash};
+            case TransactionType::STAKE:
+                return {MAKE_ERROR(SUCCESS), committed_stake_transaction_t(reader), block_hash};
+            case TransactionType::RECALL_STAKE:
+                return {MAKE_ERROR(SUCCESS), committed_recall_stake_transaction_t(reader), block_hash};
+            case TransactionType::STAKE_REFUND:
+                return {MAKE_ERROR(SUCCESS), stake_refund_transaction_t(reader), block_hash};
             default:
                 return {MAKE_ERROR(UNKNOWN_TRANSACTION_TYPE), {}, block_hash};
         }
     }
 
-    std::tuple<Error, Types::Blockchain::transaction_output_t>
+    std::tuple<Error, transaction_output_t>
         BlockchainStorage::get_transaction_output(const crypto_hash_t &output_hash) const
     {
         const auto [error, output] = m_transaction_outputs->get<crypto_hash_t>(output_hash);
@@ -237,10 +235,10 @@ namespace Core
         return {MAKE_ERROR(SUCCESS), output};
     }
 
-    std::tuple<Error, std::vector<Types::Blockchain::transaction_output_t>>
+    std::tuple<Error, std::vector<transaction_output_t>>
         BlockchainStorage::get_transaction_output(const std::vector<crypto_hash_t> &output_hashes) const
     {
-        std::vector<Types::Blockchain::transaction_output_t> results;
+        std::vector<transaction_output_t> results;
 
         for (const auto &output_hash : output_hashes)
         {
@@ -262,23 +260,25 @@ namespace Core
         return m_key_images->exists(key_image);
     }
 
-    std::map<crypto_key_image_t, bool>
-        BlockchainStorage::key_image_exists(const std::vector<crypto_key_image_t> &key_images) const
+    bool BlockchainStorage::key_image_exists(const std::vector<crypto_key_image_t> &key_images) const
     {
+        std::vector<crypto_key_image_t> results;
+
         auto txn = m_key_images->transaction(true);
 
-        std::map<crypto_key_image_t, bool> results;
+        bool exists = false;
 
         // loop through the requested key images
         for (const auto &key_image : key_images)
         {
             // check to see if the key image exists
-            const auto exists = txn->exists(key_image);
-
-            results.insert({key_image, exists});
+            if (txn->exists(key_image))
+            {
+                exists = true;
+            }
         }
 
-        return results;
+        return exists;
     }
 
     size_t BlockchainStorage::output_count() const
@@ -286,9 +286,7 @@ namespace Core
         return m_transaction_outputs->count();
     }
 
-    Error BlockchainStorage::put_block(
-        const Types::Blockchain::block_t &block,
-        const std::vector<Types::Blockchain::transaction_t> &transactions)
+    Error BlockchainStorage::put_block(const block_t &block, const std::vector<transaction_t> &transactions)
     {
         /**
          * Sanity check transaction order before write
@@ -442,7 +440,7 @@ namespace Core
 
     std::tuple<Error, crypto_hash_t> BlockchainStorage::put_transaction(
         std::unique_ptr<Database::LMDBTransaction> &db_tx,
-        const Types::Blockchain::transaction_t &transaction)
+        const transaction_t &transaction)
     {
         db_tx->set_database(m_transactions);
 
@@ -456,7 +454,7 @@ namespace Core
             auto error = std::visit(
                 [this, &db_tx, &txn_hash](auto &&arg)
                 {
-                    using T = std::decay_t<decltype(arg)>;
+                    USEVARIANT(T, arg);
 
                     {
                         txn_hash = arg.hash();
@@ -471,11 +469,7 @@ namespace Core
                     }
 
                     // handle the key images on each type of transaction
-                    if constexpr (
-                        std::is_same_v<
-                            T,
-                            Types::Blockchain::
-                                committed_normal_transaction_t> || std::is_same_v<T, Types::Blockchain::committed_stake_transaction_t> || std::is_same_v<T, Types::Blockchain::committed_recall_stake_transaction_t>)
+                    if COMMITED_USER_TX_VARIANT (T)
                     {
                         // loop through the key images in the transaction and push them into the database
                         for (const auto &key_image : arg.key_images)
@@ -505,16 +499,27 @@ namespace Core
          */
         {
             auto error = std::visit(
-                [this, &db_tx](auto &&arg)
+                [&](auto &&arg)
                 {
-                    using T = std::decay_t<decltype(arg)>;
+                    USEVARIANT(T, arg);
 
                     // handle the different types of transactions
-                    if constexpr (
-                        std::is_same_v<
-                            T,
-                            Types::Blockchain::
-                                committed_normal_transaction_t> || std::is_same_v<T, Types::Blockchain::committed_stake_transaction_t> || std::is_same_v<T, Types::Blockchain::committed_recall_stake_transaction_t> || std::is_same_v<T, Types::Blockchain::genesis_transaction_t>)
+                    if COMMITED_USER_TX_VARIANT (T)
+                    {
+                        const auto txn_hash = arg.hash();
+
+                        // loop through the outputs and push them into the database for the global indexes
+                        for (const auto &output : arg.outputs)
+                        {
+                            auto error = put_transaction_output(db_tx, output);
+
+                            if (error)
+                            {
+                                return error;
+                            }
+                        }
+                    }
+                    else if VARIANT (T, genesis_transaction_t)
                     {
                         const auto txn_hash = arg.hash();
 
@@ -533,7 +538,7 @@ namespace Core
                      * This transaction type is a snowflake in that it does not have an output subset as
                      * this type of transaction only ever contains a single output
                      */
-                    else if constexpr (std::is_same_v<T, Types::Blockchain::stake_refund_transaction_t>)
+                    else if VARIANT (T, stake_refund_transaction_t)
                     {
                         const auto txn_hash = arg.hash();
 
@@ -541,8 +546,7 @@ namespace Core
                          * We set the amount to 0 here as a) the amount is masked anyways and b) it does not
                          * matter for generating or checking signatures
                          */
-                        const auto output =
-                            Types::Blockchain::transaction_output_t(arg.public_ephemeral, 0, arg.commitment);
+                        const auto output = transaction_output_t(arg.public_ephemeral, 0, arg.commitment);
 
                         // push the output into the database
                         auto error = put_transaction_output(db_tx, output);
@@ -578,7 +582,7 @@ namespace Core
 
     Error BlockchainStorage::put_transaction_output(
         std::unique_ptr<Database::LMDBTransaction> &db_tx,
-        const Types::Blockchain::transaction_output_t &output)
+        const transaction_output_t &output)
     {
         db_tx->set_database(m_transaction_outputs);
 

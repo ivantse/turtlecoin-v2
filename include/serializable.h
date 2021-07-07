@@ -6,6 +6,7 @@
 #define TURTLECOIN_SERIALIZABLE_H
 
 #include <crypto_types.h>
+#include <errors.h>
 
 namespace BaseTypes
 {
@@ -14,6 +15,15 @@ namespace BaseTypes
         virtual crypto_hash_t hash() const = 0;
 
         virtual uint64_t type() const = 0;
+    };
+
+    struct ICheckable
+    {
+        virtual Error check_construction() const = 0;
+    };
+
+    struct ITransaction : virtual IStorable, virtual ICheckable
+    {
     };
 } // namespace BaseTypes
 

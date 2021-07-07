@@ -8,6 +8,8 @@
 #include <db_lmdb.h>
 #include <types.h>
 
+using namespace Types::Blockchain;
+
 namespace Core
 {
     class BlockchainStorage
@@ -50,7 +52,7 @@ namespace Core
          * @param block_hash
          * @return
          */
-        [[nodiscard]] std::tuple<Error, Types::Blockchain::block_t, std::vector<Types::Blockchain::transaction_t>>
+        [[nodiscard]] std::tuple<Error, block_t, std::vector<transaction_t>>
             get_block(const crypto_hash_t &block_hash) const;
 
         /**
@@ -59,7 +61,7 @@ namespace Core
          * @param block_height
          * @return
          */
-        [[nodiscard]] std::tuple<Error, Types::Blockchain::block_t, std::vector<Types::Blockchain::transaction_t>>
+        [[nodiscard]] std::tuple<Error, block_t, std::vector<transaction_t>>
             get_block(const uint64_t &block_index) const;
 
         /**
@@ -106,8 +108,7 @@ namespace Core
          * @param count
          * @return
          */
-        [[nodiscard]] std::tuple<Error, std::vector<Types::Blockchain::transaction_output_t>>
-            get_random_outputs(size_t count = 1) const;
+        [[nodiscard]] std::tuple<Error, std::vector<transaction_output_t>> get_random_outputs(size_t count = 1) const;
 
         /**
          * Retrieves the transaction with the specified hash
@@ -115,7 +116,7 @@ namespace Core
          * @param txn_hash
          * @return
          */
-        [[nodiscard]] std::tuple<Error, Types::Blockchain::transaction_t, crypto_hash_t>
+        [[nodiscard]] std::tuple<Error, transaction_t, crypto_hash_t>
             get_transaction(const crypto_hash_t &txn_hash) const;
 
         /**
@@ -124,7 +125,7 @@ namespace Core
          * @param output_hash
          * @return
          */
-        [[nodiscard]] std::tuple<Error, Types::Blockchain::transaction_output_t>
+        [[nodiscard]] std::tuple<Error, transaction_output_t>
             get_transaction_output(const crypto_hash_t &output_hash) const;
 
         /**
@@ -136,7 +137,7 @@ namespace Core
          * @param output_hashes
          * @return
          */
-        [[nodiscard]] std::tuple<Error, std::vector<Types::Blockchain::transaction_output_t>>
+        [[nodiscard]] std::tuple<Error, std::vector<transaction_output_t>>
             get_transaction_output(const std::vector<crypto_hash_t> &output_hashes) const;
 
         /**
@@ -148,13 +149,14 @@ namespace Core
         [[nodiscard]] bool key_image_exists(const crypto_key_image_t &key_image) const;
 
         /**
-         * Checks if the specified key image exists in the database
+         * Checks if any of the specified key images exist in the database
+         *
+         * If they do exist, the already existing key images are returned
          *
          * @param key_images
          * @return
          */
-        [[nodiscard]] std::map<crypto_key_image_t, bool>
-            key_image_exists(const std::vector<crypto_key_image_t> &key_images) const;
+        [[nodiscard]] bool key_image_exists(const std::vector<crypto_key_image_t> &key_images) const;
 
         /**
          * Returns the number of transaction outputs in the database
@@ -170,9 +172,7 @@ namespace Core
          * @param transactions
          * @return
          */
-        Error put_block(
-            const Types::Blockchain::block_t &block,
-            const std::vector<Types::Blockchain::transaction_t> &transactions);
+        Error put_block(const block_t &block, const std::vector<transaction_t> &transactions);
 
       private:
         /**
@@ -191,9 +191,8 @@ namespace Core
          * @param transaction
          * @return
          */
-        std::tuple<Error, crypto_hash_t> put_transaction(
-            std::unique_ptr<Database::LMDBTransaction> &db_tx,
-            const Types::Blockchain::transaction_t &transaction);
+        std::tuple<Error, crypto_hash_t>
+            put_transaction(std::unique_ptr<Database::LMDBTransaction> &db_tx, const transaction_t &transaction);
 
         /**
          * Saves the specified block hash for the specified transaction hash
@@ -217,7 +216,7 @@ namespace Core
          */
         Error put_transaction_output(
             std::unique_ptr<Database::LMDBTransaction> &db_tx,
-            const Types::Blockchain::transaction_output_t &output);
+            const transaction_output_t &output);
 
         std::shared_ptr<Database::LMDB> m_db_env;
 

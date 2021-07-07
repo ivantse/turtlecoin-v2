@@ -12,7 +12,7 @@ namespace Types::Blockchain
     struct stake_refund_transaction_t :
         BaseTypes::TransactionPrefix,
         BaseTypes::TransactionOutput,
-        virtual BaseTypes::IStorable
+        virtual BaseTypes::ITransaction
     {
         stake_refund_transaction_t()
         {
@@ -49,11 +49,53 @@ namespace Types::Blockchain
 
         JSON_OBJECT_CONSTRUCTORS(stake_refund_transaction_t, fromJSON)
 
+        [[nodiscard]] Error check_construction() const override
+        {
+            if (version != 1)
+            {
+                return MAKE_ERROR(TX_INVALID_VERSION);
+            }
+
+            if (public_key.empty())
+            {
+                return MAKE_ERROR(TX_PUBLIC_KEY);
+            }
+
+            if (secret_key.empty())
+            {
+                return MAKE_ERROR(TX_SECRET_KEY);
+            }
+
+            if (Crypto::secret_key_to_public_key(secret_key) != public_key)
+            {
+                return MAKE_ERROR(TX_KEYPAIR_MISMATCH);
+            }
+
+            if (recall_stake_tx.empty())
+            {
+                return MAKE_ERROR(TX_RECALL_STAKE_TX_HASH);
+            }
+
+            // check the included output
+            {
+                const auto output = transaction_output_t(public_ephemeral, amount, commitment);
+
+                auto error = output.check_construction();
+
+                if (error)
+                {
+                    return error;
+                }
+            }
+
+            return MAKE_ERROR(SUCCESS);
+        }
+
         void deserialize(deserializer_t &reader) override
         {
             deserialize_prefix(reader);
 
-            tx_secret_key = reader.key<crypto_secret_key_t>();
+            secret_key = reader.key<crypto_secret_key_t>();
 
             recall_stake_tx = reader.key<crypto_hash_t>();
 
@@ -66,7 +108,7 @@ namespace Types::Blockchain
 
             prefix_fromJSON(j);
 
-            LOAD_KEY_FROM_JSON(tx_secret_key);
+            LOAD_KEY_FROM_JSON(secret_key);
 
             LOAD_KEY_FROM_JSON(recall_stake_tx);
 
@@ -90,7 +132,7 @@ namespace Types::Blockchain
         {
             serialize_prefix(writer);
 
-            tx_secret_key.serialize(writer);
+            secret_key.serialize(writer);
 
             recall_stake_tx.serialize(writer);
 
@@ -119,7 +161,7 @@ namespace Types::Blockchain
             {
                 prefix_toJSON(writer);
 
-                KEY_TO_JSON(tx_secret_key);
+                KEY_TO_JSON(secret_key);
 
                 KEY_TO_JSON(recall_stake_tx);
 
@@ -136,7 +178,7 @@ namespace Types::Blockchain
             return Crypto::StringTools::to_hex(bytes.data(), bytes.size());
         }
 
-        crypto_secret_key_t tx_secret_key;
+        crypto_secret_key_t secret_key;
         crypto_hash_t recall_stake_tx;
     };
 } // namespace Types::Blockchain
@@ -149,8 +191,8 @@ namespace std
            << "\tHash: " << value.hash() << std::endl
            << "\tVersion: " << value.version << std::endl
            << "\tUnlock Block: " << value.unlock_block << std::endl
-           << "\tTx Public Key: " << value.tx_public_key << std::endl
-           << "\tTx Secret key: " << value.tx_secret_key << std::endl
+           << "\tPublic Key: " << value.public_key << std::endl
+           << "\tSecret key: " << value.secret_key << std::endl
            << "\tRecall Stake Tx: " << value.recall_stake_tx << std::endl
            << "\tPublic Ephemeral: " << value.public_ephemeral << std::endl
            << "\tAmount: " << value.amount << std::endl

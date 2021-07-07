@@ -8,6 +8,8 @@
 #include <db_lmdb.h>
 #include <types.h>
 
+using namespace Types::Staking;
+
 namespace Core
 {
     /**
@@ -28,14 +30,14 @@ namespace Core
          * @param candidate the candidate public key
          * @return
          */
-        Error add_candidate(const Types::Staking::candidate_node_t &candidate);
+        Error add_candidate(const candidate_node_t &candidate);
 
         /**
          * Adds a new staker to the database
          * @param staker
          * @return
          */
-        Error add_staker(const Types::Staking::staker_t &staker);
+        Error add_staker(const staker_t &staker);
 
         /**
          * Calculates the election seed from the given last blocks presented
@@ -64,14 +66,14 @@ namespace Core
          * @param candidate_key
          * @return [found, candidate_record]
          */
-        std::tuple<Error, Types::Staking::candidate_node_t> get_candidate(const crypto_public_key_t &candidate_key);
+        std::tuple<Error, candidate_node_t> get_candidate(const crypto_public_key_t &candidate_key);
 
         /**
          * Retrieves all of the active stakes for the given candidate
          * @param candidate_key
          * @return
          */
-        std::vector<Types::Staking::stake_t> get_candidate_stakes(const crypto_public_key_t &candidate_key);
+        std::vector<stake_t> get_candidate_stakes(const crypto_public_key_t &candidate_key);
 
         /**
          * Retrieves the number of votes for a specific candidate key
@@ -94,7 +96,7 @@ namespace Core
          * @param staker_key
          * @return [found, staker_record]
          */
-        std::tuple<Error, Types::Staking::staker_t> get_staker(const crypto_hash_t &staker_key);
+        std::tuple<Error, staker_t> get_staker(const crypto_hash_t &staker_key);
 
         /**
          * Retrieves all tally of all of a staker's votes for a particular candidate
@@ -115,8 +117,7 @@ namespace Core
          * @param staker_id
          * @return
          */
-        std::map<crypto_public_key_t, std::vector<Types::Staking::stake_t>>
-            get_staker_stakes(const crypto_hash_t &staker_id);
+        std::map<crypto_public_key_t, std::vector<stake_t>> get_staker_stakes(const crypto_hash_t &staker_id);
 
         /**
          * Recall a the stake with the given parameters
@@ -127,7 +128,7 @@ namespace Core
          * @return
          */
         Error recall_stake(
-            const Types::Staking::staker_t &staker,
+            const staker_t &staker,
             const crypto_hash_t &stake_txn,
             const crypto_public_key_t &candidate_key,
             const uint64_t &stake);
@@ -141,7 +142,7 @@ namespace Core
          * @return
          */
         Error record_stake(
-            const Types::Staking::staker_t &staker,
+            const staker_t &staker,
             const crypto_hash_t &stake_txn,
             const crypto_public_key_t &candidate_key,
             const uint64_t &stake);

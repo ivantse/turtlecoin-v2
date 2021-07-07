@@ -539,7 +539,7 @@ namespace Database
          *
          * @return
          */
-        std::shared_ptr<LMDB> env() const;
+        [[nodiscard]] std::shared_ptr<LMDB> env() const;
 
         /**
          * Deletes the provided key
@@ -728,7 +728,7 @@ namespace Database
          *
          * @return
          */
-        std::tuple<Error, size_t> id() const;
+        [[nodiscard]] std::tuple<Error, size_t> id() const;
 
         /**
          * Puts the specified value with the specified key in the database using the specified flag(s)
@@ -785,7 +785,7 @@ namespace Database
          *
          * @return
          */
-        bool readonly() const;
+        [[nodiscard]] bool readonly() const;
 
         /**
          * Renew a read-only transaction that has been previously reset()

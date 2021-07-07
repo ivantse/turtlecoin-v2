@@ -14,7 +14,7 @@ namespace Types::Blockchain
         BaseTypes::TransactionUserBody,
         BaseTypes::StakeTransactionData,
         BaseTypes::CommittedTransactionSuffix,
-        virtual BaseTypes::IStorable
+        virtual BaseTypes::ITransaction
     {
         committed_stake_transaction_t()
         {
@@ -50,6 +50,88 @@ namespace Types::Blockchain
         }
 
         JSON_OBJECT_CONSTRUCTORS(committed_stake_transaction_t, fromJSON)
+
+        [[nodiscard]] Error check_construction() const override
+        {
+            if (version != 1)
+            {
+                return MAKE_ERROR(TX_INVALID_VERSION);
+            }
+
+            if (public_key.empty())
+            {
+                return MAKE_ERROR(TX_PUBLIC_KEY);
+            }
+
+            if (fee == 0)
+            {
+                return MAKE_ERROR(TX_MISSING_FEE);
+            }
+
+            // check to verify that the transaction contains the proper number of inputs
+            if (key_images.empty() || key_images.size() > Configuration::Transaction::MAXIMUM_INPUTS)
+            {
+                return MAKE_ERROR(TX_INVALID_INPUT_COUNT);
+            }
+
+            // verify that all key images are in the proper subgroup
+            for (const auto &key_image : key_images)
+            {
+                if (!key_image.check_subgroup())
+                {
+                    return MAKE_ERROR(TX_INVALID_KEY_IMAGE);
+                }
+            }
+
+            /**
+             * Check for duplicate key images by de-duplicating them and comparing
+             * the resulting vector size(s)
+             */
+            if (crypto_point_vector_t(key_images).dedupe_sort().size() != key_images.size())
+            {
+                return MAKE_ERROR(TX_DUPLICATE_KEY_IMAGE);
+            }
+
+            // check to verify that the transaction contains the proper number of outputs
+            if (outputs.size() < Configuration::Transaction::MINIMUM_OUTPUTS
+                || outputs.size() > Configuration::Transaction::MAXIMUM_OUTPUTS)
+            {
+                return MAKE_ERROR(TX_INVALID_OUTPUT_COUNT);
+            }
+
+            // check all of the output constructions
+            for (const auto &output : outputs)
+            {
+                auto error = output.check_construction();
+
+                if (error)
+                {
+                    return error;
+                }
+            }
+
+            if (stake_amount == 0)
+            {
+                return MAKE_ERROR(TX_STAKE_NO_AMOUNT);
+            }
+
+            if (candidate_public_key.empty())
+            {
+                return MAKE_ERROR(STAKING_CANDIDATE_NOT_FOUND);
+            }
+
+            if (staker_public_view_key.empty())
+            {
+                return MAKE_ERROR(TX_PUBLIC_VIEW_KEY_NOT_FOUND);
+            }
+
+            if (staker_public_spend_key.empty())
+            {
+                return MAKE_ERROR(TX_PUBLIC_SPEND_KEY_NOT_FOUND);
+            }
+
+            return MAKE_ERROR(SUCCESS);
+        }
 
         void deserialize(deserializer_t &reader) override
         {
@@ -90,15 +172,37 @@ namespace Types::Blockchain
 
             /**
              * To make sure that both an uncommitted and committed transaction have the same
-             * hash, we incorporate the pruning hash into the hash of the uncommitted
-             * transaction here to make sure that we get the same result
+             * hash, we incorporate the signature_hash and range_proof_hash into the hash of
+             * the uncommitted transaction here to make sure that we get the same result
              */
 
-            pruning_hash.serialize(writer);
+            writer.key(signature_hash);
 
-            writer.key(pruning_hash);
+            writer.key(range_proof_hash);
 
             return Crypto::Hashing::sha3(writer.data(), writer.size());
+        }
+
+        [[nodiscard]] crypto_hash_t pow_hash() const
+        {
+            serializer_t writer;
+
+            writer.bytes(serialize_digest());
+
+            writer.key(range_proof_hash);
+
+            const auto data = Crypto::Hashing::sha3(writer.data(), writer.size());
+
+            return Crypto::Hashing::argon2id(
+                data,
+                Configuration::Transaction::ProofOfWork::ITERATIONS,
+                Configuration::Transaction::ProofOfWork::MEMORY,
+                Configuration::Transaction::ProofOfWork::THREADS);
+        }
+
+        [[nodiscard]] bool pow_verify(const uint8_t zeros = 0) const
+        {
+            return pow_hash().leading_zeros() >= zeros;
         }
 
         void serialize(serializer_t &writer) const override
@@ -169,7 +273,7 @@ namespace Types::Blockchain
         BaseTypes::TransactionUserBody,
         BaseTypes::StakeTransactionData,
         BaseTypes::UncommittedTransactionSuffix,
-        virtual BaseTypes::IStorable
+        virtual BaseTypes::ITransaction
     {
         uncommitted_stake_transaction_t()
         {
@@ -206,6 +310,127 @@ namespace Types::Blockchain
 
         JSON_OBJECT_CONSTRUCTORS(uncommitted_stake_transaction_t, fromJSON)
 
+        [[nodiscard]] Error check_construction() const override
+        {
+            if (version != 1)
+            {
+                return MAKE_ERROR(TX_INVALID_VERSION);
+            }
+
+            if (public_key.empty())
+            {
+                return MAKE_ERROR(TX_PUBLIC_KEY);
+            }
+
+            if (fee == 0)
+            {
+                return MAKE_ERROR(TX_MISSING_FEE);
+            }
+
+            // check to verify that the transaction contains the proper number of inputs
+            if (key_images.empty() || key_images.size() > Configuration::Transaction::MAXIMUM_INPUTS)
+            {
+                return MAKE_ERROR(TX_INVALID_INPUT_COUNT);
+            }
+
+            // verify that all key images are in the proper subgroup
+            for (const auto &key_image : key_images)
+            {
+                if (!key_image.check_subgroup())
+                {
+                    return MAKE_ERROR(TX_INVALID_KEY_IMAGE);
+                }
+            }
+
+            /**
+             * Check for duplicate key images by de-duplicating them and comparing
+             * the resulting vector size(s)
+             */
+            if (crypto_point_vector_t(key_images).dedupe_sort().size() != key_images.size())
+            {
+                return MAKE_ERROR(TX_DUPLICATE_KEY_IMAGE);
+            }
+
+            // check to verify that the transaction contains the proper number of outputs
+            if (outputs.size() < Configuration::Transaction::MINIMUM_OUTPUTS
+                || outputs.size() > Configuration::Transaction::MAXIMUM_OUTPUTS)
+            {
+                return MAKE_ERROR(TX_INVALID_OUTPUT_COUNT);
+            }
+
+            std::vector<crypto_pedersen_commitment_t> commitments;
+
+            // check all of the output constructions
+            for (const auto &output : outputs)
+            {
+                auto error = output.check_construction();
+
+                if (error)
+                {
+                    return error;
+                }
+
+                commitments.push_back(output.commitment);
+            }
+
+            if (stake_amount == 0)
+            {
+                return MAKE_ERROR(TX_STAKE_NO_AMOUNT);
+            }
+
+            if (candidate_public_key.empty())
+            {
+                return MAKE_ERROR(STAKING_CANDIDATE_NOT_FOUND);
+            }
+
+            if (staker_public_view_key.empty())
+            {
+                return MAKE_ERROR(TX_PUBLIC_VIEW_KEY_NOT_FOUND);
+            }
+
+            if (staker_public_spend_key.empty())
+            {
+                return MAKE_ERROR(TX_PUBLIC_SPEND_KEY_NOT_FOUND);
+            }
+
+            // check that the transaction is in balance
+            if (key_images.size() != pseudo_commitments.size())
+            {
+                return MAKE_ERROR(TX_INVALID_PSEUDO_COMMITMENT_COUNT);
+            }
+
+            if (!Crypto::RingCT::check_commitments_parity(pseudo_commitments, commitments, fee))
+            {
+                return MAKE_ERROR(TX_COMMITMENTS_DO_NOT_BALANCE);
+            }
+
+            // check the range proof is constructed
+            if (!range_proof.check_construction())
+            {
+                return MAKE_ERROR(TX_INVALID_RANGE_PROOF);
+            }
+
+            /**
+             * check to make sure that we have the same number of signatures
+             * as the number of inputs
+             */
+            if (key_images.size() != signatures.size())
+            {
+                return MAKE_ERROR(TX_SIG_SIZE_MISMATCH);
+            }
+
+            // check the signature constructions
+            for (const auto &signature : signatures)
+            {
+                if (!signature.check_construction(Configuration::Transaction::RING_SIZE))
+                {
+                    return MAKE_ERROR(TX_INVALID_SIGNATURE);
+                }
+            }
+
+            return MAKE_ERROR(SUCCESS);
+        }
+
         void deserialize(deserializer_t &reader) override
         {
             deserialize_prefix(reader);
@@ -237,11 +462,11 @@ namespace Types::Blockchain
             return Crypto::Hashing::sha3(data.data(), data.size());
         }
 
-        [[nodiscard]] size_t digest_size() const
+        [[nodiscard]] size_t committed_size() const
         {
             const auto data = serialize_digest();
 
-            return data.size() + sizeof(crypto_hash_t);
+            return data.size() + sizeof(crypto_hash_t) + sizeof(crypto_hash_t);
         }
 
         [[nodiscard]] crypto_hash_t hash() const override
@@ -252,13 +477,13 @@ namespace Types::Blockchain
 
             /**
              * To make sure that both an uncommitted and committed transaction have the same
-             * hash, we incorporate the pruning hash into the hash of the uncommitted
-             * transaction here to make sure that we get the same result
+             * hash, we incorporate the signature_hash and range_proof_hash into the hash of
+             * the uncommitted transaction here to make sure that we get the same result
              */
 
-            const auto prune_hash = pruning_hash();
+            writer.key(signature_hash());
 
-            writer.key(prune_hash);
+            writer.key(range_proof_hash());
 
             return Crypto::Hashing::sha3(writer.data(), writer.size());
         }
@@ -288,9 +513,9 @@ namespace Types::Blockchain
         {
             serializer_t writer;
 
-            writer.key(digest());
+            writer.bytes(serialize_digest());
 
-            writer.key(range_proof.hash());
+            writer.key(range_proof_hash());
 
             const auto data = Crypto::Hashing::sha3(writer.data(), writer.size());
 
@@ -304,11 +529,6 @@ namespace Types::Blockchain
         [[nodiscard]] bool pow_verify(const uint8_t zeros = 0) const
         {
             return pow_hash().leading_zeros() >= zeros;
-        }
-
-        [[nodiscard]] crypto_hash_t pruning_hash() const
-        {
-            return suffix_hash();
         }
 
         void serialize(serializer_t &writer) const override
@@ -359,7 +579,7 @@ namespace Types::Blockchain
 
             tx.unlock_block = unlock_block;
 
-            tx.tx_public_key = tx_public_key;
+            tx.public_key = public_key;
 
             tx.nonce = nonce;
 
@@ -377,7 +597,9 @@ namespace Types::Blockchain
 
             tx.staker_public_spend_key = staker_public_spend_key;
 
-            tx.pruning_hash = pruning_hash();
+            tx.signature_hash = signature_hash();
+
+            tx.range_proof_hash = range_proof_hash();
 
             return tx;
         }
@@ -410,13 +632,18 @@ namespace std
 {
     inline ostream &operator<<(ostream &os, const Types::Blockchain::committed_stake_transaction_t &value)
     {
+        const auto pow_hash = value.pow_hash();
+
         os << "Committed Stake Transaction [" << value.size() << " bytes]" << std::endl
            << "\tHash: " << value.hash() << std::endl
            << "\tDigest: " << value.digest() << std::endl
-           << "\tPruning Hash: " << value.pruning_hash << std::endl
+           << "\tSignature Hash: " << value.signature_hash << std::endl
+           << "\tRange Proof Hash: " << value.range_proof_hash << std::endl
+           << "\tPoW Hash: " << pow_hash << std::endl
+           << "\tPoW Zeros: " << pow_hash.leading_zeros() << std::endl
            << "\tVersion: " << value.version << std::endl
            << "\tUnlock Block: " << value.unlock_block << std::endl
-           << "\tTx Public Key: " << value.tx_public_key << std::endl
+           << "\tPublic Key: " << value.public_key << std::endl
            << "\tNonce: " << value.nonce << std::endl
            << "\tFee: " << value.fee << std::endl
            << "\tInput Key Images:" << std::endl;
@@ -443,14 +670,19 @@ namespace std
 
     inline ostream &operator<<(ostream &os, const Types::Blockchain::uncommitted_stake_transaction_t &value)
     {
+        const auto pow_hash = value.pow_hash();
+
         os << "Uncommitted Stake Transaction [" << value.size() << " bytes]" << std::endl
-           << "\tCommitted Size: " << value.digest_size() << " bytes" << std::endl
+           << "\tCommitted Size: " << value.committed_size() << " bytes" << std::endl
            << "\tHash: " << value.hash() << std::endl
            << "\tDigest: " << value.digest() << std::endl
-           << "\tPruning Hash: " << value.pruning_hash() << std::endl
+           << "\tSignature Hash: " << value.signature_hash() << std::endl
+           << "\tRange Proof Hash: " << value.range_proof_hash() << std::endl
+           << "\tPoW Hash: " << pow_hash << std::endl
+           << "\tPoW Zeros: " << pow_hash.leading_zeros() << std::endl
            << "\tVersion: " << value.version << std::endl
            << "\tUnlock Block: " << value.unlock_block << std::endl
-           << "\tTx Public Key: " << value.tx_public_key << std::endl
+           << "\tPublic Key: " << value.public_key << std::endl
            << "\tNonce: " << value.nonce << std::endl
            << "\tFee: " << value.fee << std::endl;
 

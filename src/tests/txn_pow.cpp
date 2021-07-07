@@ -24,7 +24,7 @@ int main(int argc, char **argv)
             {
                 Types::Blockchain::uncommited_normal_transaction_t tx;
 
-                tx.tx_public_key = Crypto::random_point();
+                tx.public_key = Crypto::random_point();
 
                 [[maybe_unused]] const auto success = tx.mine(i);
             },

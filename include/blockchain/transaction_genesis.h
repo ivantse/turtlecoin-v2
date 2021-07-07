@@ -9,7 +9,7 @@
 
 namespace Types::Blockchain
 {
-    struct genesis_transaction_t : BaseTypes::TransactionPrefix, virtual BaseTypes::IStorable
+    struct genesis_transaction_t : BaseTypes::TransactionPrefix, virtual BaseTypes::ITransaction
     {
         genesis_transaction_t()
         {
@@ -50,7 +50,7 @@ namespace Types::Blockchain
         {
             deserialize_prefix(reader);
 
-            tx_secret_key = reader.key<crypto_secret_key_t>();
+            secret_key = reader.key<crypto_secret_key_t>();
 
             // outputs
             {
@@ -71,7 +71,7 @@ namespace Types::Blockchain
 
             prefix_fromJSON(j);
 
-            LOAD_KEY_FROM_JSON(tx_secret_key);
+            LOAD_KEY_FROM_JSON(secret_key);
 
             JSON_MEMBER_OR_THROW("outputs");
 
@@ -81,6 +81,47 @@ namespace Types::Blockchain
             {
                 outputs.emplace_back(elem);
             }
+        }
+
+        [[nodiscard]] Error check_construction() const override
+        {
+            if (version != 1)
+            {
+                return MAKE_ERROR(TX_INVALID_VERSION);
+            }
+
+            if (public_key.empty())
+            {
+                return MAKE_ERROR(TX_PUBLIC_KEY);
+            }
+
+            if (secret_key.empty())
+            {
+                return MAKE_ERROR(TX_SECRET_KEY);
+            }
+
+            if (Crypto::secret_key_to_public_key(secret_key) != public_key)
+            {
+                return MAKE_ERROR(TX_KEYPAIR_MISMATCH);
+            }
+
+            // verify that the genesis transaction contains the proper number of outputs
+            if (outputs.size() != Configuration::Transaction::RING_SIZE * 2)
+            {
+                return MAKE_ERROR(TX_INVALID_OUTPUT_COUNT);
+            }
+
+            for (const auto &output : outputs)
+            {
+                auto error = output.check_construction();
+
+                if (error)
+                {
+                    return error;
+                }
+            }
+
+            return MAKE_ERROR(SUCCESS);
         }
 
         [[nodiscard]] crypto_hash_t hash() const override
@@ -94,7 +135,7 @@ namespace Types::Blockchain
         {
             serialize_prefix(writer);
 
-            tx_secret_key.serialize(writer);
+            secret_key.serialize(writer);
 
             writer.varint(outputs.size());
 
@@ -126,7 +167,7 @@ namespace Types::Blockchain
             {
                 prefix_toJSON(writer);
 
-                KEY_TO_JSON(tx_secret_key);
+                KEY_TO_JSON(secret_key);
 
                 writer.Key("outputs");
                 writer.StartArray();
@@ -148,7 +189,7 @@ namespace Types::Blockchain
             return Crypto::StringTools::to_hex(bytes.data(), bytes.size());
         }
 
-        crypto_secret_key_t tx_secret_key;
+        crypto_secret_key_t secret_key;
         std::vector<transaction_output_t> outputs;
     };
 } // namespace Types::Blockchain
@@ -161,8 +202,8 @@ namespace std
            << "\tHash: " << value.hash() << std::endl
            << "\tVersion: " << value.version << std::endl
            << "\tUnlock Block: " << value.unlock_block << std::endl
-           << "\tTx Public Key: " << value.tx_public_key << std::endl
-           << "\tTx Secret Key: " << value.tx_secret_key << std::endl
+           << "\tPublic Key: " << value.public_key << std::endl
+           << "\tSecret Key: " << value.secret_key << std::endl
            << "\tOutputs:" << std::endl;
 
         for (const auto &output : value.outputs)

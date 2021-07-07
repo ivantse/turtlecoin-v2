@@ -9,7 +9,7 @@
 
 namespace Types::Blockchain
 {
-    struct staker_reward_transaction_t : BaseTypes::TransactionHeader, virtual BaseTypes::IStorable
+    struct staker_reward_transaction_t : BaseTypes::TransactionHeader, virtual BaseTypes::ITransaction
     {
         staker_reward_transaction_t()
         {
@@ -45,6 +45,29 @@ namespace Types::Blockchain
         }
 
         JSON_OBJECT_CONSTRUCTORS(staker_reward_transaction_t, fromJSON)
+
+        [[nodiscard]] Error check_construction() const override
+        {
+            if (version != 1)
+            {
+                return MAKE_ERROR(TX_INVALID_VERSION);
+            }
+
+            for (const auto &output : staker_outputs)
+            {
+                if (output.amount == 0)
+                {
+                    return MAKE_ERROR(TX_STAKER_REWARD_AMOUNT);
+                }
+
+                if (output.staker_id.empty())
+                {
+                    return MAKE_ERROR(TX_STAKER_REWARD_ID);
+                }
+            }
+
+            return MAKE_ERROR(SUCCESS);
+        }
 
         void deserialize(deserializer_t &reader)
         {
