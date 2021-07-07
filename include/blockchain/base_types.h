@@ -211,6 +211,36 @@ namespace BaseTypes
 
         JSON_OBJECT_CONSTRUCTORS(TransactionOutput, output_fromJSON)
 
+        bool operator==(const TransactionOutput &other) const
+        {
+            return hash() == other.hash();
+        }
+
+        bool operator!=(const TransactionOutput &other) const
+        {
+            return !(*this == other);
+        }
+
+        bool operator<(const TransactionOutput &other) const
+        {
+            return (hash() < other.hash());
+        }
+
+        bool operator<=(const TransactionOutput &other) const
+        {
+            return (*this == other) || (*this < other);
+        }
+
+        bool operator>(const TransactionOutput &other) const
+        {
+            return (hash() > other.hash());
+        }
+
+        bool operator>=(const TransactionOutput &other) const
+        {
+            return (*this == other) || (*this > other);
+        }
+
         void deserialize_output(deserializer_t &reader)
         {
             public_ephemeral = reader.key<crypto_public_key_t>();

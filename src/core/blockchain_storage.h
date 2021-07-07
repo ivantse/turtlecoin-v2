@@ -95,6 +95,21 @@ namespace Core
         [[nodiscard]] std::tuple<Error, uint64_t> get_block_index(const crypto_hash_t &block_hash) const;
 
         /**
+         * Retrieves a vector of random transaction outputs from the database
+         *
+         * The randomness is provided by generating a random hash then selecting
+         * the first transaction output hash greater than or equal to the random
+         * hash supplied. This is repeated until the vector is filled to the
+         * requested count of outputs. Then the vector is returned sorted by the
+         * transaction output hash
+         *
+         * @param count
+         * @return
+         */
+        [[nodiscard]] std::tuple<Error, std::vector<Types::Blockchain::transaction_output_t>>
+            get_random_outputs(size_t count = 1) const;
+
+        /**
          * Retrieves the transaction with the specified hash
          *
          * @param txn_hash
@@ -122,7 +137,7 @@ namespace Core
          * @return
          */
         [[nodiscard]] std::tuple<Error, std::vector<Types::Blockchain::transaction_output_t>>
-            get_transaction_outputs(const std::vector<crypto_hash_t> &output_hashes) const;
+            get_transaction_output(const std::vector<crypto_hash_t> &output_hashes) const;
 
         /**
          * Checks if the specified key image exists in the database
@@ -140,6 +155,13 @@ namespace Core
          */
         [[nodiscard]] std::map<crypto_key_image_t, bool>
             key_image_exists(const std::vector<crypto_key_image_t> &key_images) const;
+
+        /**
+         * Returns the number of transaction outputs in the database
+         *
+         * @return
+         */
+        [[nodiscard]] size_t output_count() const;
 
         /**
          * Saves the block with the transactions specified in the database

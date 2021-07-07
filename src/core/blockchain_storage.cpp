@@ -140,6 +140,45 @@ namespace Core
         return {error, block.block_index};
     }
 
+    std::tuple<Error, std::vector<Types::Blockchain::transaction_output_t>>
+        BlockchainStorage::get_random_outputs(size_t count) const
+    {
+        std::vector<Types::Blockchain::transaction_output_t> results;
+
+        if (m_transaction_outputs->count() < count)
+        {
+            return {
+                MAKE_ERROR_MSG(DB_TRANSACTION_OUTPUT_NOT_FOUND, "Not enough transaction outputs to complete request."),
+                {}};
+        }
+
+        auto txn = m_transaction_outputs->transaction(true);
+
+        auto cursor = txn->cursor();
+
+        while (results.size() < count)
+        {
+            const auto random_hash = Crypto::random_hash();
+
+            const auto [error, key, value] =
+                cursor->get<crypto_hash_t, Types::Blockchain::transaction_output_t>(random_hash, MDB_SET_RANGE);
+
+            if (error == LMDB_NOTFOUND || value.hash() != key)
+            {
+                continue;
+            }
+
+            if (std::find(results.begin(), results.end(), value) == results.end())
+            {
+                results.push_back(value);
+            }
+        }
+
+        std::sort(results.begin(), results.end());
+
+        return {MAKE_ERROR(SUCCESS), results};
+    }
+
     std::tuple<Error, Types::Blockchain::transaction_t, crypto_hash_t>
         BlockchainStorage::get_transaction(const crypto_hash_t &txn_hash) const
     {
@@ -199,7 +238,7 @@ namespace Core
     }
 
     std::tuple<Error, std::vector<Types::Blockchain::transaction_output_t>>
-        BlockchainStorage::get_transaction_outputs(const std::vector<crypto_hash_t> &output_hashes) const
+        BlockchainStorage::get_transaction_output(const std::vector<crypto_hash_t> &output_hashes) const
     {
         std::vector<Types::Blockchain::transaction_output_t> results;
 
@@ -240,6 +279,11 @@ namespace Core
         }
 
         return results;
+    }
+
+    size_t BlockchainStorage::output_count() const
+    {
+        return m_transaction_outputs->count();
     }
 
     Error BlockchainStorage::put_block(
