@@ -165,8 +165,12 @@ namespace P2P
         {
             if (peer.last_seen < prune_time)
             {
-                // ignore the possible error returned here because we really don't care
-                del(peer.hash());
+                auto error = del(peer.peer_id);
+
+                if (error)
+                {
+                    m_logger->debug("Error deleting peer {0}: {1}", peer.peer_id.to_string(), error.to_string());
+                }
             }
         }
     }
