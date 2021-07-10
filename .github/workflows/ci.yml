@@ -1,0 +1,117 @@
+name: CI Build Tests
+
+on:
+  push:
+  pull_request:
+  release:
+    types: [published]
+
+jobs:
+  cpp_build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            CC: gcc-7
+            CXX: g++-7
+            CMAKE_CMD: cmake ..
+            NAME: gcc-7
+
+          - os: ubuntu-latest
+            CC: gcc-8
+            CXX: g++-8
+            CMAKE_CMD: cmake ..
+            NAME: gcc-8
+
+          - os: ubuntu-latest
+            CC: gcc-9
+            CXX: g++-9
+            CMAKE_CMD: cmake ..
+            NAME: gcc-9
+
+          - os: ubuntu-latest
+            CC: gcc-10
+            CXX: g++-10
+            CMAKE_CMD: cmake ..
+            NAME: gcc-10
+
+          - os: ubuntu-latest
+            CC: clang-10
+            CXX: clang++-10
+            CMAKE_CMD: cmake ..
+            NAME: clang-10
+
+          - os: ubuntu-latest
+            CC: clang-11
+            CXX: clang++-11
+            CMAKE_CMD: cmake ..
+            NAME: clang-11
+
+          - os: ubuntu-latest
+            CC: clang-12
+            CXX: clang++-12
+            CMAKE_CMD: cmake ..
+            NAME: clang-12
+
+          - os: macos-latest
+            CC: /usr/local/opt/llvm/bin/clang
+            CXX: /usr/local/opt/llvm/bin/clang++
+            CMAKE_CMD: cmake ..
+            NAME: clang
+
+          - os: macos-latest
+            CMAKE_CMD: cmake ..
+            NAME: AppleClang
+
+          - os: windows-latest
+            CMAKE_CMD: cmake ..
+            NAME: msvc
+
+          - os: windows-latest
+            CMAKE_CMD: cmake .. -G "Unix Makefiles"
+            NAME: mingw-gcc
+
+    name: ${{ matrix.os }}-${{ matrix.NAME }} - C++ Test
+    env:
+      MSBUILD_PATH: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/MSBuild/Current/Bin"
+    steps:
+      - uses: actions/checkout@v1
+      - name: Checkout Submodules
+        run: |
+          git submodule update --init --recursive
+      - name: Create Build Directory
+        run: mkdir build
+      - name: Install Dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt update
+          sudo apt install -y ccache ${{ matrix.CC }}
+          if [[ "${{ matrix.CXX }}" != *"clang"* ]]; then sudo apt install -y ${{ matrix.CXX }}; fi
+      - name: Install Dependencies (OSX)
+        if: matrix.os == 'macos-latest' && matrix.name != 'AppleClang'
+        run: |
+          brew cask uninstall --force oclint || true
+          brew install llvm|| brew upgrade llvm
+      - name: Install ccache (OSX)
+        if: matrix.os == 'macos-latest'
+        run: brew install ccache || brew upgrade ccache
+      - name: Retrieve ccache
+        uses: actions/cache@v1
+        with:
+          path: .ccache
+          key: ccache-${{ matrix.os }}-${{ matrix.NAME }}
+      - name: Execute CMake Process
+        env:
+          CC: ${{ matrix.CC }}
+          CXX: ${{ matrix.CXX }}
+          CCACHE_DIR: $GITHUB_WORKSPACE/.ccache
+        run: |
+          cd build
+          ${{ matrix.CMAKE_CMD }} -DBUILD_TEST=1
+      - name: Build Project
+        env:
+          CCACHE_DIR: $GITHUB_WORKSPACE/.ccache
+        run: |
+          cd build
+          cmake --build .
