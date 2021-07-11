@@ -54,11 +54,11 @@ jobs:
             CMAKE_CMD: cmake ..
             NAME: clang-12
 
-          - os: macos-latest
-            CC: /usr/local/opt/llvm/bin/clang
-            CXX: /usr/local/opt/llvm/bin/clang++
-            CMAKE_CMD: cmake ..
-            NAME: clang
+          #- os: macos-latest
+          #  CC: /usr/local/opt/llvm/bin/clang
+          #  CXX: /usr/local/opt/llvm/bin/clang++
+          #  CMAKE_CMD: cmake ..
+          #  NAME: clang
 
           - os: macos-latest
             CMAKE_CMD: cmake ..
