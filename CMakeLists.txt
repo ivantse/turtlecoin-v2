@@ -130,7 +130,7 @@ else()
 
         elseif(CMAKE_C_COMPILER_ID STREQUAL "Clang")
             # Need to link against the llvm libc++ library, default is too old for std::filesystem
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -I/usr/local/opt/llvm/include/c++/v1")
+            # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -I/usr/local/opt/llvm/include/c++/v1")
         endif()
     endif()
 

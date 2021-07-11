@@ -12,65 +12,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            CC: gcc-7
-            CXX: g++-7
-            CMAKE_CMD: cmake ..
-            NAME: gcc-7
-
-          - os: ubuntu-latest
-            CC: gcc-8
-            CXX: g++-8
-            CMAKE_CMD: cmake ..
-            NAME: gcc-8
-
-          - os: ubuntu-latest
-            CC: gcc-9
-            CXX: g++-9
-            CMAKE_CMD: cmake ..
-            NAME: gcc-9
-
-          - os: ubuntu-latest
-            CC: gcc-10
-            CXX: g++-10
-            CMAKE_CMD: cmake ..
-            NAME: gcc-10
-
-          - os: ubuntu-latest
-            CC: clang-10
-            CXX: clang++-10
-            CMAKE_CMD: cmake ..
-            NAME: clang-10
-
-          - os: ubuntu-latest
-            CC: clang-11
-            CXX: clang++-11
-            CMAKE_CMD: cmake ..
-            NAME: clang-11
-
-          - os: ubuntu-latest
-            CC: clang-12
-            CXX: clang++-12
-            CMAKE_CMD: cmake ..
-            NAME: clang-12
-
           - os: macos-latest
             CC: /usr/local/opt/llvm/bin/clang
             CXX: /usr/local/opt/llvm/bin/clang++
             CMAKE_CMD: cmake ..
             NAME: clang
-
-          - os: macos-latest
-            CMAKE_CMD: cmake ..
-            NAME: AppleClang
-
-          - os: windows-latest
-            CMAKE_CMD: cmake ..
-            NAME: msvc
-
-          - os: windows-latest
-            CMAKE_CMD: cmake .. -G "Unix Makefiles"
-            NAME: mingw-gcc
 
     name: ${{ matrix.os }}-${{ matrix.NAME }} - C++ Test
     env:
