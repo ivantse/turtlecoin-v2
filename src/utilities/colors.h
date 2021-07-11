@@ -137,7 +137,7 @@ template<typename type> type &operator<<(type &ostream, const COLOR color)
 
         foreground = initial_attributes & 0x000F;
 
-#elif __unix__
+#else
         ostream << "\033[m";
 #endif
     }
@@ -165,7 +165,7 @@ template<typename type> type &operator<<(type &ostream, const COLOR color)
 
         colored_cout_impl::setConsoleTextAttr(set);
 
-#elif __unix__
+#else
         ostream << "\033[" << static_cast<uint32_t>(color) << "m";
 #endif
     }

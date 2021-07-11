@@ -332,7 +332,7 @@ namespace Types::Blockchain
                 return;
             }
 
-            const auto has_producer = (producer_public_key != Crypto::Z && producer_signature != crypto_signature_t());
+            const auto has_producer = (producer_public_key != Crypto::Z && !producer_signature.empty());
 
             writer.boolean(has_producer);
 
@@ -420,7 +420,7 @@ namespace Types::Blockchain
                 writer.EndArray();
 
                 const auto has_producer =
-                    (producer_public_key != Crypto::Z && producer_signature != crypto_signature_t());
+                    (producer_public_key != Crypto::Z && !producer_signature.empty());
 
                 if (has_producer)
                 {
