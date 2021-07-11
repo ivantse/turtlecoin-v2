@@ -69,7 +69,7 @@ namespace Types::Blockchain
             return MAKE_ERROR(SUCCESS);
         }
 
-        void deserialize(deserializer_t &reader)
+        void deserialize(deserializer_t &reader) override
         {
             deserialize_header(reader);
 
@@ -86,7 +86,7 @@ namespace Types::Blockchain
             }
         }
 
-        JSON_FROM_FUNC(fromJSON)
+        JSON_FROM_FUNC(fromJSON) override
         {
             JSON_OBJECT_OR_THROW();
 
@@ -102,14 +102,14 @@ namespace Types::Blockchain
             }
         }
 
-        [[nodiscard]] crypto_hash_t hash() const
+        [[nodiscard]] crypto_hash_t hash() const override
         {
             const auto bytes = serialize();
 
             return Crypto::Hashing::sha3(bytes.data(), bytes.size());
         }
 
-        void serialize(serializer_t &writer) const
+        void serialize(serializer_t &writer) const override
         {
             serialize_header(writer);
 
@@ -121,7 +121,7 @@ namespace Types::Blockchain
             }
         }
 
-        [[nodiscard]] std::vector<uint8_t> serialize() const
+        [[nodiscard]] std::vector<uint8_t> serialize() const override
         {
             serializer_t writer;
 
@@ -130,7 +130,7 @@ namespace Types::Blockchain
             return writer.vector();
         }
 
-        [[nodiscard]] size_t size() const
+        [[nodiscard]] size_t size() const override
         {
             const auto bytes = serialize();
 
@@ -156,7 +156,7 @@ namespace Types::Blockchain
             writer.EndObject();
         }
 
-        [[nodiscard]] std::string to_string() const
+        [[nodiscard]] std::string to_string() const override
         {
             const auto bytes = serialize();
 
