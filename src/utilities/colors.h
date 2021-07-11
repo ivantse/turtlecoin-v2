@@ -82,7 +82,7 @@ enum class COLOR : uint16_t
     on_yellow,
     on_white,
     reset = 0xFF
-#elif __unix__
+#else
 enum class COLOR : uint8_t
 {
     grey = 30,
@@ -102,8 +102,6 @@ enum class COLOR : uint8_t
     on_cyan = 46,
     on_white = 47,
     reset
-#else
-#error unsupported
 #endif
 };
 
