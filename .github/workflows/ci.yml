@@ -5,6 +5,8 @@ on:
   pull_request:
   release:
     types: [published]
+  schedule:
+    - cron: '30 3 * * 0'
 
 jobs:
   cpp_build:
@@ -111,7 +113,7 @@ jobs:
           CCACHE_DIR: $GITHUB_WORKSPACE/.ccache
         run: |
           cd build
-          ${{ matrix.CMAKE_CMD }} -DBUILD_TEST=1
+          ${{ matrix.CMAKE_CMD }} -DARCH=default -DCMAKE_BUILD_TYPE=Release -DSTATIC=true
       - name: Build Project
         env:
           CCACHE_DIR: $GITHUB_WORKSPACE/.ccache
