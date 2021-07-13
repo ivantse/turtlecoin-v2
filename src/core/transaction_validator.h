@@ -43,7 +43,7 @@ namespace Core
          * @param transaction
          * @return
          */
-        [[nodiscard]] Error validate(const transaction_t &transaction) const;
+        [[nodiscard]] Error validate(uint64_t block_index, const transaction_t &transaction) const;
 
         /**
          * Performs full validation of the transaction
@@ -51,7 +51,7 @@ namespace Core
          * @param transaction
          * @return
          */
-        [[nodiscard]] Error validate(const uncommitted_transaction_t &transaction) const;
+        [[nodiscard]] Error validate(uint64_t block_index, const uncommitted_transaction_t &transaction) const;
 
       private:
         std::shared_ptr<BlockchainStorage> m_blockchain_storage;

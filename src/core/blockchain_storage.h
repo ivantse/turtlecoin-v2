@@ -98,6 +98,7 @@ namespace Core
 
         /**
          * Retrieves a vector of random transaction outputs from the database
+         * that meet or exceed the provided block index (spendable)
          *
          * The randomness is provided by generating a random hash then selecting
          * the first transaction output hash greater than or equal to the random
@@ -105,10 +106,12 @@ namespace Core
          * requested count of outputs. Then the vector is returned sorted by the
          * transaction output hash
          *
+         * @param block_index
          * @param count
          * @return
          */
-        [[nodiscard]] std::tuple<Error, std::vector<transaction_output_t>> get_random_outputs(size_t count = 1) const;
+        [[nodiscard]] std::tuple<Error, std::vector<transaction_output_t>>
+            get_random_outputs(uint64_t block_index = 0, size_t count = 1) const;
 
         /**
          * Retrieves the transaction with the specified hash
@@ -125,7 +128,7 @@ namespace Core
          * @param output_hash
          * @return
          */
-        [[nodiscard]] std::tuple<Error, transaction_output_t>
+        [[nodiscard]] std::tuple<Error, transaction_output_t, uint64_t>
             get_transaction_output(const crypto_hash_t &output_hash) const;
 
         /**
@@ -137,7 +140,7 @@ namespace Core
          * @param output_hashes
          * @return
          */
-        [[nodiscard]] std::tuple<Error, std::vector<transaction_output_t>>
+        [[nodiscard]] std::tuple<Error, std::vector<std::tuple<transaction_output_t, uint64_t>>>
             get_transaction_output(const std::vector<crypto_hash_t> &output_hashes) const;
 
         /**
@@ -164,6 +167,14 @@ namespace Core
          * @return
          */
         [[nodiscard]] size_t output_count() const;
+
+        /**
+         * Checks if the provided transaction output exists in the database
+         *
+         * @param output_hash
+         * @return
+         */
+        [[nodiscard]] bool output_exists(const crypto_hash_t &output_hash) const;
 
         /**
          * Saves the block with the transactions specified in the database
@@ -212,11 +223,13 @@ namespace Core
          *
          * @param db_tx
          * @param output
+         * @param unlock_block
          * @return
          */
         Error put_transaction_output(
             std::unique_ptr<Database::LMDBTransaction> &db_tx,
-            const transaction_output_t &output);
+            const transaction_output_t &output,
+            uint64_t unlock_block);
 
         std::shared_ptr<Database::LMDB> m_db_env;
 

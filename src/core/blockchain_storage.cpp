@@ -140,7 +140,8 @@ namespace Core
         return {error, block.block_index};
     }
 
-    std::tuple<Error, std::vector<transaction_output_t>> BlockchainStorage::get_random_outputs(size_t count) const
+    std::tuple<Error, std::vector<transaction_output_t>>
+        BlockchainStorage::get_random_outputs(uint64_t block_index, size_t count) const
     {
         std::vector<transaction_output_t> results;
 
@@ -159,16 +160,27 @@ namespace Core
         {
             const auto random_hash = Crypto::random_hash();
 
-            const auto [error, key, value] = cursor->get<transaction_output_t>(random_hash, MDB_SET_RANGE);
+            auto [error, key, value] = cursor->get(random_hash, MDB_SET_RANGE);
 
-            if (error == LMDB_NOTFOUND || value.hash() != key)
+            if (error == LMDB_NOTFOUND)
             {
                 continue;
             }
 
-            if (std::find(results.begin(), results.end(), value) == results.end())
+            transaction_output_t output;
+
+            output.deserialize(value);
+
+            const auto unlock_block = value.varint<uint64_t>();
+
+            if (output.hash() != key || unlock_block < block_index)
             {
-                results.push_back(value);
+                continue;
+            }
+
+            if (std::find(results.begin(), results.end(), output) == results.end())
+            {
+                results.push_back(output);
             }
         }
 
@@ -221,34 +233,40 @@ namespace Core
         }
     }
 
-    std::tuple<Error, transaction_output_t>
+    std::tuple<Error, transaction_output_t, uint64_t>
         BlockchainStorage::get_transaction_output(const crypto_hash_t &output_hash) const
     {
-        const auto [error, output] = m_transaction_outputs->get<transaction_output_t>(output_hash);
+        auto [error, output_data] = m_transaction_outputs->get(output_hash);
 
         if (error)
         {
-            return {MAKE_ERROR(DB_TRANSACTION_OUTPUT_NOT_FOUND), {}};
+            return {MAKE_ERROR(DB_TRANSACTION_OUTPUT_NOT_FOUND), {}, {}};
         }
 
-        return {MAKE_ERROR(SUCCESS), output};
+        transaction_output_t output;
+
+        output.deserialize(output_data);
+
+        const auto unlock_block = output_data.varint<uint64_t>();
+
+        return {MAKE_ERROR(SUCCESS), output, unlock_block};
     }
 
-    std::tuple<Error, std::vector<transaction_output_t>>
+    std::tuple<Error, std::vector<std::tuple<transaction_output_t, uint64_t>>>
         BlockchainStorage::get_transaction_output(const std::vector<crypto_hash_t> &output_hashes) const
     {
-        std::vector<transaction_output_t> results;
+        std::vector<std::tuple<transaction_output_t, uint64_t>> results;
 
         for (const auto &output_hash : output_hashes)
         {
-            const auto [error, output] = get_transaction_output(output_hash);
+            const auto [error, output, unlock_block] = get_transaction_output(output_hash);
 
             if (error)
             {
                 return {error, {}};
             }
 
-            results.push_back(output);
+            results.push_back({output, unlock_block});
         }
 
         return {MAKE_ERROR(SUCCESS), results};
@@ -283,6 +301,11 @@ namespace Core
     size_t BlockchainStorage::output_count() const
     {
         return m_transaction_outputs->count();
+    }
+
+    bool BlockchainStorage::output_exists(const crypto_hash_t &output_hash) const
+    {
+        return m_transaction_outputs->exists(output_hash);
     }
 
     Error BlockchainStorage::put_block(const block_t &block, const std::vector<transaction_t> &transactions)
@@ -510,7 +533,7 @@ namespace Core
                         // loop through the outputs and push them into the database for the global indexes
                         for (const auto &output : arg.outputs)
                         {
-                            auto error = put_transaction_output(db_tx, output);
+                            auto error = put_transaction_output(db_tx, output, arg.unlock_block);
 
                             if (error)
                             {
@@ -525,7 +548,7 @@ namespace Core
                         // loop through the outputs and push them into the database for the global indexes
                         for (const auto &output : arg.outputs)
                         {
-                            auto error = put_transaction_output(db_tx, output);
+                            auto error = put_transaction_output(db_tx, output, arg.unlock_block);
 
                             if (error)
                             {
@@ -533,18 +556,15 @@ namespace Core
                             }
                         }
                     }
-                    /**
-                     * This transaction type is a snowflake in that it does not have an output subset as
-                     * this type of transaction only ever contains a single output
-                     */
                     else if VARIANT (T, stake_refund_transaction_t)
                     {
                         const auto txn_hash = arg.hash();
 
+                        // loop through the outputs and put them in the database
                         for (const auto &output : arg.outputs)
                         {
                             // push the output into the database
-                            auto error = put_transaction_output(db_tx, output);
+                            auto error = put_transaction_output(db_tx, output, arg.unlock_block);
 
                             if (error)
                             {
@@ -578,10 +598,18 @@ namespace Core
 
     Error BlockchainStorage::put_transaction_output(
         std::unique_ptr<Database::LMDBTransaction> &db_tx,
-        const transaction_output_t &output)
+        const transaction_output_t &output,
+        uint64_t unlock_block)
     {
         db_tx->set_database(m_transaction_outputs);
 
-        return db_tx->put(output.hash(), output);
+        // we pack the unlock block on to the output for storage
+        serializer_t writer;
+
+        output.serialize(writer);
+
+        writer.varint(unlock_block);
+
+        return db_tx->put(output.hash(), writer);
     }
 } // namespace Core

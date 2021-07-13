@@ -159,7 +159,7 @@ namespace Core
             transaction);
     }
 
-    Error TransactionValidator::validate(const uncommitted_transaction_t &transaction) const
+    Error TransactionValidator::validate(uint64_t block_index, const uncommitted_transaction_t &transaction) const
     {
         // first thing first, check the construction of the transaction
         auto error = check(transaction);
@@ -209,11 +209,17 @@ namespace Core
                         return error;
                     }
 
-                    for (const auto &input : inputs)
+                    for (const auto &[input, unlock_block] : inputs)
                     {
                         public_keys.push_back(input.public_ephemeral);
 
                         commitments.push_back(input.commitment);
+
+                        // if the output is locked, then we cannot include it in the ring
+                        if (unlock_block < block_index)
+                        {
+                            return MAKE_ERROR(TX_OUTPUT_LOCKED);
+                        }
                     }
                 }
 
@@ -242,7 +248,7 @@ namespace Core
             transaction);
     }
 
-    Error TransactionValidator::validate(const transaction_t &transaction) const
+    Error TransactionValidator::validate(uint64_t block_index, const transaction_t &transaction) const
     {
         // first thing first, check the construction of the transaction
         auto error = check(transaction);

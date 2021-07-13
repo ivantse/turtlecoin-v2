@@ -1047,6 +1047,28 @@ namespace Database
          * the LMDB environment before re-attempting the transaction.
          *
          * @tparam Key
+         * @param key
+         * @param value
+         * @param flags
+         * @return
+         */
+        template<typename Key> Error put(const Key &key, const serializer_t &value, int flags = 0)
+        {
+            serializer_t i_key;
+
+            key.serialize(i_key);
+
+            return put(i_key, value, flags);
+        }
+
+        /**
+         * Puts the specified value with the specified key in the database using the specified flag(s)
+         *
+         * Note: You must check for MDB_MAP_FULL or MDB_TXN_FULL response values and handle those
+         * yourself as you will very likely need to abort the current transaction and expand
+         * the LMDB environment before re-attempting the transaction.
+         *
+         * @tparam Key
          * @tparam Value
          * @param key
          * @param value
