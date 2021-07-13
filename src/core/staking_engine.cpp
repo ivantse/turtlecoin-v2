@@ -21,14 +21,14 @@ namespace Core
     {
         std::scoped_lock lock(candidates_mutex);
 
-        return m_db_candidates->put(candidate.public_signing_key, candidate.serialize());
+        return m_db_candidates->put(candidate.public_signing_key, candidate);
     }
 
     Error StakingEngine::add_staker(const staker_t &staker)
     {
         std::scoped_lock lock(stakers_mutex);
 
-        return m_db_stakers->put(staker.id(), staker.serialize());
+        return m_db_stakers->put(staker.id(), staker);
     }
 
     std::tuple<crypto_public_key_t, uint256_t, bool>
@@ -88,7 +88,7 @@ namespace Core
 
     std::tuple<Error, candidate_node_t> StakingEngine::get_candidate(const crypto_public_key_t &candidate_key)
     {
-        const auto [error, candidate] = m_db_candidates->get<crypto_public_key_t, candidate_node_t>(candidate_key);
+        const auto [error, candidate] = m_db_candidates->get<candidate_node_t>(candidate_key);
 
         if (error)
         {
@@ -104,7 +104,7 @@ namespace Core
 
         auto cursor = txn->cursor();
 
-        const auto [error, key, stakes] = cursor->get_all<crypto_public_key_t, stake_t>(candidate_key);
+        const auto [error, key, stakes] = cursor->get_all<stake_t>(candidate_key);
 
         return stakes;
     }
@@ -117,7 +117,7 @@ namespace Core
 
         auto cursor = txn->cursor();
 
-        const auto [error, key, values] = cursor->get_all<crypto_public_key_t, stake_t>(candidate_key);
+        const auto [error, key, values] = cursor->get_all<stake_t>(candidate_key);
 
         if (!error)
         {
@@ -142,7 +142,7 @@ namespace Core
 
     std::tuple<Error, staker_t> StakingEngine::get_staker(const crypto_hash_t &staker_key)
     {
-        const auto [error, staker] = m_db_stakers->get<crypto_hash_t, staker_t>(staker_key);
+        const auto [error, staker] = m_db_stakers->get<staker_t>(staker_key);
 
         if (error)
         {
@@ -219,7 +219,7 @@ namespace Core
         const auto stake_record = stake_t(staker.id(), stake_txn, stake);
 
         // now delete it
-        return m_db_stakes->del(candidate_key, stake_record.serialize());
+        return m_db_stakes->del(candidate_key, stake_record);
     }
 
     Error StakingEngine::record_stake(
@@ -264,7 +264,7 @@ namespace Core
         }
 
         // attempt to write the stake to the database
-        return m_db_stakes->put(candidate_key, stake_record.serialize());
+        return m_db_stakes->put(candidate_key, stake_record);
     }
 
     std::tuple<std::vector<crypto_public_key_t>, std::vector<crypto_public_key_t>>

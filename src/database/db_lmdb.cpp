@@ -425,7 +425,7 @@ namespace Database
     {
         auto db = m_env->get_database(m_id);
 
-        auto txn = std::make_unique<LMDBTransaction>(m_env, db, true);
+        auto txn = db->transaction(true);
 
         auto cursor = txn->cursor();
 
@@ -439,6 +439,66 @@ namespace Database
         }
 
         return count;
+    }
+
+    Error LMDBDatabase::del(const serializer_t &key)
+    {
+    try_again:
+        auto txn = transaction();
+
+        auto error = txn->del(key);
+
+        MDB_CHECK_TXN_EXPAND(error, m_env, txn, try_again);
+
+        if (error)
+        {
+            return error;
+        }
+
+        error = txn->commit();
+
+        MDB_CHECK_TXN_EXPAND(error, m_env, txn, try_again);
+
+        return error;
+    }
+
+    Error LMDBDatabase::del(const uint64_t &key)
+    {
+        serializer_t i_key;
+
+        i_key.uint64(key, true);
+
+        return del(i_key);
+    }
+
+    Error LMDBDatabase::del(const serializer_t &key, const serializer_t &value)
+    {
+    try_again:
+        auto txn = transaction();
+
+        auto error = txn->del(key, value);
+
+        MDB_CHECK_TXN_EXPAND(error, m_env, txn, try_again);
+
+        if (error)
+        {
+            return error;
+        }
+
+        error = txn->commit();
+
+        MDB_CHECK_TXN_EXPAND(error, m_env, txn, try_again);
+
+        return error;
+    }
+
+    Error LMDBDatabase::del(const uint64_t &key, const serializer_t &value)
+    {
+        serializer_t i_key;
+
+        i_key.uint64(key, true);
+
+        return del(i_key, value);
     }
 
     Error LMDBDatabase::drop(bool delete_db)
@@ -468,6 +528,59 @@ namespace Database
         return m_env;
     }
 
+    bool LMDBDatabase::exists(const serializer_t &key)
+    {
+        auto txn = transaction(true);
+
+        return txn->exists(key);
+    }
+
+    bool LMDBDatabase::exists(const uint64_t &key)
+    {
+        serializer_t i_key;
+
+        i_key.uint64(key, true);
+
+        return exists(i_key);
+    }
+
+    std::tuple<Error, deserializer_t> LMDBDatabase::get(const serializer_t &key)
+    {
+        auto txn = transaction(true);
+
+        return txn->get(key);
+    }
+
+    std::tuple<Error, deserializer_t> LMDBDatabase::get(const uint64_t &key)
+    {
+        serializer_t i_key;
+
+        i_key.uint64(key, true);
+
+        return get(i_key);
+    }
+
+    std::vector<deserializer_t> LMDBDatabase::get_all()
+    {
+        std::vector<deserializer_t> results;
+
+        const auto keys = list_keys();
+
+        for (auto &key : keys)
+        {
+            serializer_t i_key(key.unread_data());
+
+            auto [error, value] = get(i_key);
+
+            if (!error)
+            {
+                results.push_back(value);
+            }
+        }
+
+        return results;
+    }
+
     std::tuple<Error, unsigned int> LMDBDatabase::get_flags()
     {
         auto txn = transaction(true);
@@ -482,6 +595,73 @@ namespace Database
     std::string LMDBDatabase::id() const
     {
         return m_id;
+    }
+
+    std::vector<deserializer_t> LMDBDatabase::list_keys(bool ignore_duplicates)
+    {
+        auto txn = transaction(true);
+
+        auto cursor = txn->cursor();
+
+        std::vector<deserializer_t> results;
+
+        MDB_val key, value;
+
+        size_t count = 0;
+
+        deserializer_t last_key({});
+
+        while (mdb_cursor_get(*cursor, &key, &value, count ? MDB_NEXT : MDB_FIRST) == MDB_SUCCESS)
+        {
+            auto data = FROM_MDB_VAL(key);
+
+            deserializer_t r_key(data);
+
+            if (ignore_duplicates && r_key.to_string() == last_key.to_string())
+            {
+                continue;
+            }
+
+            results.push_back(r_key);
+
+            last_key = r_key;
+
+            count++;
+        }
+
+        return results;
+    }
+
+    Error LMDBDatabase::put(const serializer_t &key, const serializer_t &value, int flags)
+    {
+    try_again:
+        auto txn = transaction();
+
+        {
+            auto error = txn->put(key, value, flags);
+
+            MDB_CHECK_TXN_EXPAND(error, m_env, txn, try_again);
+
+            if (error)
+            {
+                return error;
+            }
+        }
+
+        auto error = txn->commit();
+
+        MDB_CHECK_TXN_EXPAND(error, m_env, txn, try_again);
+
+        return error;
+    }
+
+    Error LMDBDatabase::put(const uint64_t &key, const serializer_t &value, int flags)
+    {
+        serializer_t i_key;
+
+        i_key.uint64(key, true);
+
+        return put(i_key, value, flags);
     }
 
     std::unique_ptr<LMDBTransaction> LMDBDatabase::transaction(bool readonly)
@@ -560,15 +740,91 @@ namespace Database
         return m_env;
     }
 
-    bool LMDBTransaction::exists(const uint64_t &key)
+    Error LMDBTransaction::del(const serializer_t &key)
     {
-        MDB_VAL_NUM(key, i_key);
+        MDB_VAL(key, i_key);
+
+        const auto result = mdb_del(*m_txn, *m_db, &i_key, nullptr);
+
+        return MAKE_ERROR_MSG(result, MDB_STR_ERR(result));
+    }
+
+    Error LMDBTransaction::del(const serializer_t &key, const serializer_t &value)
+    {
+        MDB_VAL(key, i_key);
+
+        MDB_VAL(value, i_value);
+
+        const auto result = mdb_del(*m_txn, *m_db, &i_key, &i_value);
+
+        return MAKE_ERROR_MSG(result, MDB_STR_ERR(result));
+    }
+
+    Error LMDBTransaction::del(const uint64_t &key)
+    {
+        serializer_t i_key;
+
+        i_key.uint64(key, true);
+
+        return del(i_key);
+    }
+
+    Error LMDBTransaction::del(const uint64_t &key, const serializer_t &value)
+    {
+        serializer_t i_key;
+
+        i_key.uint64(key, true);
+
+        return del(i_key, value);
+    }
+
+    bool LMDBTransaction::exists(const serializer_t &key)
+    {
+        MDB_VAL(key, i_key);
 
         MDB_val value;
 
         const auto result = mdb_get(*m_txn, *m_db, &i_key, &value);
 
         return result == MDB_SUCCESS;
+    }
+
+    bool LMDBTransaction::exists(const uint64_t &key)
+    {
+        serializer_t i_key;
+
+        i_key.uint64(key, true);
+
+        return exists(i_key);
+    }
+
+    std::tuple<Error, deserializer_t> LMDBTransaction::get(const serializer_t &key)
+    {
+        MDB_VAL(key, i_key);
+
+        MDB_val value;
+
+        const auto result = mdb_get(*m_txn, *m_db, &i_key, &value);
+
+        deserializer_t reader({});
+
+        if (result == MDB_SUCCESS)
+        {
+            std::vector<uint8_t> data = FROM_MDB_VAL(value);
+
+            reader = deserializer_t(data);
+        }
+
+        return {MAKE_ERROR_MSG(result, MDB_STR_ERR(result)), reader};
+    }
+
+    std::tuple<Error, deserializer_t> LMDBTransaction::get(const uint64_t &key)
+    {
+        serializer_t i_key;
+
+        i_key.uint64(key, true);
+
+        return get(i_key);
     }
 
     std::tuple<Error, size_t> LMDBTransaction::id() const
@@ -581,6 +837,26 @@ namespace Database
         const auto result = mdb_txn_id(*m_txn);
 
         return {MAKE_ERROR(SUCCESS), result};
+    }
+
+    Error LMDBTransaction::put(const serializer_t &key, const serializer_t &value, int flags)
+    {
+        MDB_VAL(key, i_key);
+
+        MDB_VAL(value, i_value);
+
+        const auto result = mdb_put(*m_txn, *m_db, &i_key, &i_value, flags);
+
+        return MAKE_ERROR_MSG(result, MDB_STR_ERR(result));
+    }
+
+    Error LMDBTransaction::put(const uint64_t &key, const serializer_t &value, int flags)
+    {
+        serializer_t i_key;
+
+        i_key.uint64(key, true);
+
+        return put(i_key, value, flags);
     }
 
     bool LMDBTransaction::readonly() const
@@ -699,7 +975,7 @@ namespace Database
         return MAKE_ERROR_MSG(result, MDB_STR_ERR(result));
     }
 
-    std::tuple<Error, std::vector<uint8_t>, std::vector<uint8_t>> LMDBCursor::get(const MDB_cursor_op &op)
+    std::tuple<Error, deserializer_t, deserializer_t> LMDBCursor::get(const MDB_cursor_op &op)
     {
         if (m_cursor == nullptr)
         {
@@ -710,45 +986,124 @@ namespace Database
 
         const auto result = mdb_cursor_get(m_cursor, &i_key, &i_value, op);
 
-        std::vector<uint8_t> r_key, r_value;
+        deserializer_t key({}), value({});
 
         if (result == MDB_SUCCESS)
         {
-            r_key = FROM_MDB_VAL(i_key);
+            std::vector<uint8_t> data = FROM_MDB_VAL(i_key);
 
-            r_value = FROM_MDB_VAL(i_value);
+            key = deserializer_t(data);
+
+            data = FROM_MDB_VAL(i_value);
+
+            value = deserializer_t(data);
         }
 
-        return {MAKE_ERROR_MSG(result, MDB_STR_ERR(result)), r_key, r_value};
+        return {MAKE_ERROR_MSG(result, MDB_STR_ERR(result)), key, value};
     }
 
-    std::tuple<Error, uint64_t, std::vector<uint8_t>> LMDBCursor::get(const uint64_t &key, const MDB_cursor_op &op)
+    std::tuple<Error, deserializer_t, deserializer_t> LMDBCursor::get(const serializer_t &key, const MDB_cursor_op &op)
     {
         if (m_cursor == nullptr)
         {
-            return {MAKE_ERROR_MSG(LMDB_ERROR, "Cursor does not exist"), 0, {}};
+            return {MAKE_ERROR_MSG(LMDB_ERROR, "Cursor does not exist"), {}, {}};
         }
 
         MDB_val i_value;
 
-        MDB_VAL_NUM(key, i_key);
+        MDB_VAL(key, i_key);
 
         const auto result = mdb_cursor_get(m_cursor, &i_key, &i_value, op);
 
-        std::vector<uint8_t> r_key, r_value;
-
-        uint64_t key_value = 0;
+        deserializer_t r_key({}), value({});
 
         if (result == MDB_SUCCESS)
         {
-            r_key = FROM_MDB_VAL(i_key);
+            std::vector<uint8_t> data = FROM_MDB_VAL(i_key);
 
-            r_value = FROM_MDB_VAL(i_value);
+            r_key = deserializer_t(data);
 
-            std::memcpy(&key_value, r_key.data(), sizeof(key_value));
+            data = FROM_MDB_VAL(i_value);
+
+            value = deserializer_t(data);
         }
 
-        return {MAKE_ERROR_MSG(result, MDB_STR_ERR(result)), key_value, r_value};
+        return {MAKE_ERROR_MSG(result, MDB_STR_ERR(result)), r_key, value};
+    }
+
+    std::tuple<Error, uint64_t, deserializer_t> LMDBCursor::get(const uint64_t &key, const MDB_cursor_op &op)
+    {
+        serializer_t i_key;
+
+        i_key.uint64(key, true);
+
+        auto [error, r_key, r_value] = get(i_key, op);
+
+        if (error)
+        {
+            return {error, {}, {}};
+        }
+
+        return {error, r_key.uint64(false, true), r_value};
+    }
+
+    std::tuple<Error, deserializer_t, std::vector<deserializer_t>> LMDBCursor::get_all(const serializer_t &key)
+    {
+        std::vector<deserializer_t> results;
+
+        bool success = false;
+
+        do
+        {
+            auto [error, k, v] = get(key, (!success) ? MDB_SET : MDB_NEXT_DUP);
+
+            if (!error)
+            {
+                results.push_back(v);
+            }
+
+            success = error == SUCCESS;
+        } while (success);
+
+        Error error = (!results.empty()) ? SUCCESS : LMDB_EMPTY;
+
+        return {error, deserializer_t(key), results};
+    }
+
+    std::tuple<Error, uint64_t, std::vector<deserializer_t>> LMDBCursor::get_all(const uint64_t &key)
+    {
+        serializer_t i_key;
+
+        i_key.uint64(key, true);
+
+        auto [error, r_key, r_value] = get_all(i_key);
+
+        if (error)
+        {
+            return {error, {}, {}};
+        }
+
+        return {error, r_key.uint64(false, true), r_value};
+    }
+
+    Error LMDBCursor::put(const serializer_t &key, const serializer_t &value, int flags)
+    {
+        MDB_VAL(key, i_key);
+
+        MDB_VAL(value, i_value);
+
+        const auto result = mdb_cursor_put(m_cursor, &i_key, &i_value, flags);
+
+        return MAKE_ERROR_MSG(result, MDB_STR_ERR(result));
+    }
+
+    Error LMDBCursor::put(const uint64_t &key, const serializer_t &value, int flags)
+    {
+        serializer_t i_key;
+
+        i_key.uint64(key, true);
+
+        return put(i_key, value, flags);
     }
 
     Error LMDBCursor::renew()

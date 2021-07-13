@@ -55,14 +55,11 @@ namespace Types::Blockchain
 
             for (const auto &output : staker_outputs)
             {
-                if (output.amount == 0)
-                {
-                    return MAKE_ERROR(TX_STAKER_REWARD_AMOUNT);
-                }
+                auto error = output.check_construction();
 
-                if (output.staker_id.empty())
+                if (error)
                 {
-                    return MAKE_ERROR(TX_STAKER_REWARD_ID);
+                    return error;
                 }
             }
 
@@ -117,7 +114,7 @@ namespace Types::Blockchain
 
             for (const auto &staker_output : staker_outputs)
             {
-                staker_output.serialize_output(writer);
+                staker_output.serialize(writer);
             }
         }
 
@@ -148,7 +145,7 @@ namespace Types::Blockchain
                 {
                     for (const auto &staker_output : staker_outputs)
                     {
-                        staker_output.output_toJSON(writer);
+                        staker_output.toJSON(writer);
                     }
                 }
                 writer.EndArray();

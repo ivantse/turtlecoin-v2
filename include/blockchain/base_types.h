@@ -135,34 +135,116 @@ namespace BaseTypes
         crypto_public_key_t public_key;
     };
 
-    struct StakerOutput
+    struct StakerOutput : virtual ICheckable, virtual ISerializable, virtual IHashable
     {
         StakerOutput() {}
 
         StakerOutput(const crypto_hash_t &staker_id, uint64_t amount): staker_id(staker_id), amount(amount) {}
 
-        StakerOutput(deserializer_t &reader)
+        StakerOutput(const std::vector<uint8_t> &data)
         {
-            deserialize_output(reader);
+            deserializer_t reader(data);
+
+            deserialize(reader);
         }
 
-        JSON_OBJECT_CONSTRUCTORS(StakerOutput, output_fromJSON)
+        StakerOutput(const std::initializer_list<uint8_t> &data)
+        {
+            deserializer_t reader(data);
 
-        void deserialize_output(deserializer_t &reader)
+            deserialize(reader);
+        }
+
+        StakerOutput(deserializer_t &reader)
+        {
+            deserialize(reader);
+        }
+
+        JSON_OBJECT_CONSTRUCTORS(StakerOutput, fromJSON)
+
+        bool operator==(const StakerOutput &other) const
+        {
+            return hash() == other.hash();
+        }
+
+        bool operator!=(const StakerOutput &other) const
+        {
+            return !(*this == other);
+        }
+
+        bool operator<(const StakerOutput &other) const
+        {
+            return (hash() < other.hash());
+        }
+
+        bool operator<=(const StakerOutput &other) const
+        {
+            return (*this == other) || (*this < other);
+        }
+
+        bool operator>(const StakerOutput &other) const
+        {
+            return (hash() > other.hash());
+        }
+
+        bool operator>=(const StakerOutput &other) const
+        {
+            return (*this == other) || (*this > other);
+        }
+
+        Error check_construction() const override
+        {
+            if (staker_id.empty())
+            {
+                return MAKE_ERROR(TX_STAKER_REWARD_ID);
+            }
+
+            if (amount == 0)
+            {
+                return MAKE_ERROR(TX_STAKER_REWARD_AMOUNT);
+            }
+
+            return MAKE_ERROR(SUCCESS);
+        }
+
+        void deserialize(deserializer_t &reader) override
         {
             staker_id = reader.key<crypto_hash_t>();
 
             amount = reader.varint<uint64_t>();
         }
 
-        void serialize_output(serializer_t &writer) const
+        [[nodiscard]] crypto_hash_t hash() const override
+        {
+            const auto bytes = serialize();
+
+            return Crypto::Hashing::sha3(bytes.data(), bytes.size());
+        }
+
+        void serialize(serializer_t &writer) const override
         {
             writer.key(staker_id);
 
             writer.varint(amount);
         }
 
-        JSON_TO_FUNC(output_toJSON)
+        [[nodiscard]] std::vector<uint8_t> serialize() const override
+        {
+            serializer_t writer;
+
+            serialize(writer);
+
+            return writer.vector();
+        }
+
+        [[nodiscard]] size_t size() const override
+        {
+            const auto bytes = serialize();
+
+            return bytes.size();
+        }
+
+        JSON_TO_FUNC(toJSON) override
         {
             writer.StartObject();
             {
@@ -173,7 +255,7 @@ namespace BaseTypes
             writer.EndObject();
         }
 
-        JSON_FROM_FUNC(output_fromJSON)
+        JSON_FROM_FUNC(fromJSON) override
         {
             JSON_OBJECT_OR_THROW();
 
@@ -182,11 +264,18 @@ namespace BaseTypes
             LOAD_U64_FROM_JSON(amount);
         }
 
+        [[nodiscard]] std::string to_string() const override
+        {
+            const auto bytes = serialize();
+
+            return Crypto::StringTools::to_hex(bytes.data(), bytes.size());
+        }
+
         crypto_hash_t staker_id;
         uint64_t amount = 0;
     };
 
-    struct TransactionOutput : virtual ICheckable
+    struct TransactionOutput : virtual ICheckable, virtual ISerializable, virtual IHashable
     {
         TransactionOutput() {}
 
@@ -202,15 +291,22 @@ namespace BaseTypes
         {
             deserializer_t reader(data);
 
-            deserialize_output(reader);
+            deserialize(reader);
+        }
+
+        TransactionOutput(const std::initializer_list<uint8_t> &data)
+        {
+            deserializer_t reader(data);
+
+            deserialize(reader);
         }
 
         TransactionOutput(deserializer_t &reader)
         {
-            deserialize_output(reader);
+            deserialize(reader);
         }
 
-        JSON_OBJECT_CONSTRUCTORS(TransactionOutput, output_fromJSON)
+        JSON_OBJECT_CONSTRUCTORS(TransactionOutput, fromJSON)
 
         bool operator==(const TransactionOutput &other) const
         {
@@ -262,7 +358,7 @@ namespace BaseTypes
             return MAKE_ERROR(SUCCESS);
         }
 
-        void deserialize_output(deserializer_t &reader)
+        void deserialize(deserializer_t &reader) override
         {
             public_ephemeral = reader.key<crypto_public_key_t>();
 
@@ -273,12 +369,12 @@ namespace BaseTypes
 
         [[nodiscard]] crypto_hash_t hash() const
         {
-            const auto data = serialize_output();
+            const auto data = serialize();
 
             return Crypto::Hashing::sha3(data.data(), data.size());
         }
 
-        void serialize_output(serializer_t &writer) const
+        void serialize(serializer_t &writer) const override
         {
             writer.key(public_ephemeral);
 
@@ -287,16 +383,23 @@ namespace BaseTypes
             writer.key(commitment);
         }
 
-        [[nodiscard]] std::vector<uint8_t> serialize_output() const
+        [[nodiscard]] std::vector<uint8_t> serialize() const override
         {
             serializer_t writer;
 
-            serialize_output(writer);
+            serialize(writer);
 
             return writer.vector();
         }
 
-        JSON_TO_FUNC(output_toJSON)
+        [[nodiscard]] size_t size() const override
+        {
+            const auto bytes = serialize();
+
+            return bytes.size();
+        }
+
+        JSON_TO_FUNC(toJSON) override
         {
             writer.StartObject();
             {
@@ -309,7 +412,7 @@ namespace BaseTypes
             writer.EndObject();
         }
 
-        JSON_FROM_FUNC(output_fromJSON)
+        JSON_FROM_FUNC(fromJSON) override
         {
             JSON_OBJECT_OR_THROW();
 
@@ -318,6 +421,13 @@ namespace BaseTypes
             LOAD_U64_FROM_JSON(amount);
 
             LOAD_KEY_FROM_JSON(commitment);
+        }
+
+        [[nodiscard]] std::string to_string() const override
+        {
+            const auto bytes = serialize();
+
+            return Crypto::StringTools::to_hex(bytes.data(), bytes.size());
         }
 
         crypto_public_key_t public_ephemeral;
@@ -362,7 +472,7 @@ namespace BaseTypes
 
             for (const auto &output : outputs)
             {
-                output.serialize_output(writer);
+                output.serialize(writer);
             }
         }
 
@@ -379,7 +489,7 @@ namespace BaseTypes
             {
                 for (const auto &output : outputs)
                 {
-                    output.output_toJSON(writer);
+                    output.toJSON(writer);
                 }
             }
             writer.EndArray();

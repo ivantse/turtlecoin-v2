@@ -9,10 +9,7 @@
 
 namespace Types::Blockchain
 {
-    struct stake_refund_transaction_t :
-        BaseTypes::TransactionPrefix,
-        BaseTypes::TransactionOutput,
-        virtual BaseTypes::ITransaction
+    struct stake_refund_transaction_t : BaseTypes::TransactionPrefix, virtual BaseTypes::ITransaction
     {
         stake_refund_transaction_t()
         {
@@ -76,10 +73,13 @@ namespace Types::Blockchain
                 return MAKE_ERROR(TX_RECALL_STAKE_TX_HASH);
             }
 
-            // check the included output
+            if (outputs.size() != 1)
             {
-                const auto output = transaction_output_t(public_ephemeral, amount, commitment);
+                return MAKE_ERROR(TX_INVALID_OUTPUT_COUNT);
+            }
 
+            for (const auto &output : outputs)
+            {
                 auto error = output.check_construction();
 
                 if (error)
@@ -99,7 +99,17 @@ namespace Types::Blockchain
 
             recall_stake_tx = reader.key<crypto_hash_t>();
 
-            deserialize_output(reader);
+            // outputs
+            {
+                const auto count = reader.varint<uint64_t>();
+
+                outputs.clear();
+
+                for (size_t i = 0; i < count; ++i)
+                {
+                    outputs.emplace_back(reader);
+                }
+            }
         }
 
         JSON_FROM_FUNC(fromJSON) override
@@ -112,12 +122,13 @@ namespace Types::Blockchain
 
             LOAD_KEY_FROM_JSON(recall_stake_tx);
 
-            JSON_MEMBER_OR_THROW("output");
+            JSON_MEMBER_OR_THROW("outputs");
 
+            outputs.clear();
+
+            for (const auto &elem : get_json_array(j, "outputs"))
             {
-                const auto &elem = get_json_value(j, "output");
-
-                output_fromJSON(elem);
+                outputs.emplace_back(elem);
             }
         }
 
@@ -136,7 +147,12 @@ namespace Types::Blockchain
 
             recall_stake_tx.serialize(writer);
 
-            serialize_output(writer);
+            writer.varint(outputs.size());
+
+            for (const auto &output : outputs)
+            {
+                output.serialize(writer);
+            }
         }
 
         [[nodiscard]] std::vector<uint8_t> serialize() const override
@@ -165,8 +181,15 @@ namespace Types::Blockchain
 
                 KEY_TO_JSON(recall_stake_tx);
 
-                writer.Key("output");
-                output_toJSON(writer);
+                writer.Key("outputs");
+                writer.StartArray();
+                {
+                    for (const auto &output : outputs)
+                    {
+                        output.toJSON(writer);
+                    }
+                }
+                writer.EndArray();
             }
             writer.EndObject();
         }
@@ -180,6 +203,7 @@ namespace Types::Blockchain
 
         crypto_secret_key_t secret_key;
         crypto_hash_t recall_stake_tx;
+        std::vector<transaction_output_t> outputs;
     };
 } // namespace Types::Blockchain
 
@@ -193,10 +217,12 @@ namespace std
            << "\tUnlock Block: " << value.unlock_block << std::endl
            << "\tPublic Key: " << value.public_key << std::endl
            << "\tSecret key: " << value.secret_key << std::endl
-           << "\tRecall Stake Tx: " << value.recall_stake_tx << std::endl
-           << "\tPublic Ephemeral: " << value.public_ephemeral << std::endl
-           << "\tAmount: " << value.amount << std::endl
-           << "\tCommitment: " << value.commitment << std::endl;
+           << "\tRecall Stake Tx: " << value.recall_stake_tx << std::endl;
+
+        os << std::endl << "\tOutputs:" << std::endl;
+
+        for (const auto &output : value.outputs)
+            os << output << std::endl;
 
         return os;
     }

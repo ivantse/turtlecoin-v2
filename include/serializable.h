@@ -10,16 +10,19 @@
 
 namespace BaseTypes
 {
-    struct IStorable : ISerializable
+    struct IHashable
     {
-        virtual crypto_hash_t hash() const = 0;
+        [[nodiscard]] virtual crypto_hash_t hash() const = 0;
+    };
 
-        virtual uint64_t type() const = 0;
+    struct IStorable : ISerializable, IHashable
+    {
+        [[nodiscard]] virtual uint64_t type() const = 0;
     };
 
     struct ICheckable
     {
-        virtual Error check_construction() const = 0;
+        [[nodiscard]] virtual Error check_construction() const = 0;
     };
 
     struct ITransaction : virtual IStorable, virtual ICheckable

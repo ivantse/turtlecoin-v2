@@ -59,7 +59,7 @@ namespace P2P
 
         m_logger->trace("Adding new Peer entry: {0}", entry.peer_id.to_string());
 
-        return m_database->put(entry.peer_id, entry.serialize());
+        return m_database->put(entry.peer_id, entry);
     }
 
     size_t PeerDB::count() const
@@ -98,7 +98,7 @@ namespace P2P
     {
         std::scoped_lock lock(m_mutex);
 
-        return m_database->get<crypto_hash_t, network_peer_t>(peer_id);
+        return m_database->get<network_peer_t>(peer_id);
     }
 
     crypto_hash_t PeerDB::peer_id() const
@@ -117,7 +117,7 @@ namespace P2P
     {
         std::scoped_lock lock(m_mutex);
 
-        auto peers = m_database->get_all<crypto_hash_t, network_peer_t>();
+        auto peers = m_database->get_all<network_peer_t>();
 
         /**
          * We were asked for peers for a specific network ID

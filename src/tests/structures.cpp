@@ -174,6 +174,20 @@ int main(int argc, char **argv)
         check_binary_json_serialization(structure, "stake_refund_transaction_t");
     }
 
+    // Transaction Output
+    {
+        auto structure = Blockchain::transaction_output_t();
+
+        check_binary_json_serialization(structure, "transaction_output_t");
+    }
+
+    // Staker Output
+    {
+        auto structure = Blockchain::staker_output_t();
+
+        check_binary_json_serialization(structure, "staker_output_t");
+    }
+
     // Candidate
     {
         auto structure = Staking::candidate_node_t();

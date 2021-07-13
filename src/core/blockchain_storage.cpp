@@ -51,7 +51,7 @@ namespace Core
         BlockchainStorage::get_block(const crypto_hash_t &block_hash) const
     {
         // go get the block
-        const auto [error, block] = m_blocks->get<crypto_hash_t, block_t>(block_hash);
+        const auto [error, block] = m_blocks->get<block_t>(block_hash);
 
         if (error)
         {
@@ -130,7 +130,7 @@ namespace Core
     std::tuple<Error, uint64_t> BlockchainStorage::get_block_index(const crypto_hash_t &block_hash) const
     {
         // go get the block
-        const auto [error, block] = m_blocks->get<crypto_hash_t, block_t>(block_hash);
+        const auto [error, block] = m_blocks->get<block_t>(block_hash);
 
         if (error)
         {
@@ -159,8 +159,7 @@ namespace Core
         {
             const auto random_hash = Crypto::random_hash();
 
-            const auto [error, key, value] =
-                cursor->get<crypto_hash_t, transaction_output_t>(random_hash, MDB_SET_RANGE);
+            const auto [error, key, value] = cursor->get<transaction_output_t>(random_hash, MDB_SET_RANGE);
 
             if (error == LMDB_NOTFOUND || value.hash() != key)
             {
@@ -190,7 +189,7 @@ namespace Core
         }
 
         // go get the block hash the transaction is contained within
-        const auto [txn_error, block_hash] = m_transaction_block_hashes->get<crypto_hash_t>(txn_hash);
+        const auto [txn_error, block_hash] = m_transaction_block_hashes->get<crypto_hash_t, crypto_hash_t>(txn_hash);
 
         if (txn_error)
         {
@@ -225,7 +224,7 @@ namespace Core
     std::tuple<Error, transaction_output_t>
         BlockchainStorage::get_transaction_output(const crypto_hash_t &output_hash) const
     {
-        const auto [error, output] = m_transaction_outputs->get<crypto_hash_t>(output_hash);
+        const auto [error, output] = m_transaction_outputs->get<transaction_output_t>(output_hash);
 
         if (error)
         {
@@ -384,7 +383,7 @@ namespace Core
         {
             db_tx->set_database(m_blocks);
 
-            auto error = db_tx->put(block_hash, block.serialize());
+            auto error = db_tx->put(block_hash, block);
 
             MDB_CHECK_TXN_EXPAND(error, m_db_env, db_tx, try_again);
 
@@ -435,7 +434,7 @@ namespace Core
     {
         db_tx->set_database(m_key_images);
 
-        return db_tx->put<crypto_key_image_t, std::vector<uint8_t>>(key_image, {});
+        return db_tx->put(key_image);
     }
 
     std::tuple<Error, crypto_hash_t> BlockchainStorage::put_transaction(
@@ -460,7 +459,7 @@ namespace Core
                         txn_hash = arg.hash();
 
                         // push the transaction itself into the database
-                        auto error = db_tx->put(txn_hash, arg.serialize());
+                        auto error = db_tx->put(txn_hash, arg);
 
                         if (error)
                         {
@@ -542,18 +541,15 @@ namespace Core
                     {
                         const auto txn_hash = arg.hash();
 
-                        /**
-                         * We set the amount to 0 here as a) the amount is masked anyways and b) it does not
-                         * matter for generating or checking signatures
-                         */
-                        const auto output = transaction_output_t(arg.public_ephemeral, 0, arg.commitment);
-
-                        // push the output into the database
-                        auto error = put_transaction_output(db_tx, output);
-
-                        if (error)
+                        for (const auto &output : arg.outputs)
                         {
-                            return error;
+                            // push the output into the database
+                            auto error = put_transaction_output(db_tx, output);
+
+                            if (error)
+                            {
+                                return error;
+                            }
                         }
                     }
 
@@ -586,6 +582,6 @@ namespace Core
     {
         db_tx->set_database(m_transaction_outputs);
 
-        return db_tx->put(output.hash(), output.serialize_output());
+        return db_tx->put(output.hash(), output);
     }
 } // namespace Core

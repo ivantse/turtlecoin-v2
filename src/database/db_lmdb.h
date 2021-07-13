@@ -11,6 +11,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <serializer.h>
 #include <tuple>
 
 #define MDB_STR_ERR(variable) std::string(mdb_strerror(variable))
@@ -288,11 +289,42 @@ namespace Database
          * If we encounter MDB_MAP_FULL, we will automatically retry the transaction after
          * attempting to expand the database
          *
-         * @tparam KeyType
          * @param key
          * @return
          */
-        template<typename KeyType> Error del(const KeyType &key);
+        Error del(const serializer_t &key);
+
+        /**
+         * Simplified deletion of the given key and its value. Automatically opens a
+         * transaction, deletes the key, and commits the transaction, then returns.
+         *
+         * If we encounter MDB_MAP_FULL, we will automatically retry the transaction after
+         * attempting to expand the database
+         *
+         * @tparam Key
+         * @param key
+         * @return
+         */
+        template<typename Key> Error del(const Key &key)
+        {
+            serializer_t i_key;
+
+            key.serialize(i_key);
+
+            return del(i_key);
+        }
+
+        /**
+         * Simplified deletion of the given key and its value. Automatically opens a
+         * transaction, deletes the key, and commits the transaction, then returns.
+         *
+         * If we encounter MDB_MAP_FULL, we will automatically retry the transaction after
+         * attempting to expand the database
+         *
+         * @param key
+         * @return
+         */
+        Error del(const uint64_t &key);
 
         /**
          * Simplified deletion of the given key with the given value. Automatically
@@ -302,13 +334,72 @@ namespace Database
          * If we encounter MDB_MAP_FULL, we will automatically retry the transaction after
          * attempting to expand the database
          *
-         * @tparam KeyType
-         * @tparam ValueType
          * @param key
          * @param value
          * @return
          */
-        template<typename KeyType, typename ValueType> Error del(const KeyType &key, const ValueType &value);
+        Error del(const serializer_t &key, const serializer_t &value);
+
+        /**
+         * Simplified deletion of the given key with the given value. Automatically
+         * opens a transaction, deletes the value, and commits the transaction, then
+         * returns.
+         *
+         * If we encounter MDB_MAP_FULL, we will automatically retry the transaction after
+         * attempting to expand the database
+         *
+         * @tparam Key
+         * @tparam Value
+         * @param key
+         * @param value
+         * @return
+         */
+        template<typename Key, typename Value> Error del(const Key &key, const Value &value)
+        {
+            serializer_t i_key, i_value;
+
+            key.serialize(i_key);
+
+            value.serialize(i_value);
+
+            return del(i_key, i_value);
+        }
+
+        /**
+         * Simplified deletion of the given key with the given value. Automatically
+         * opens a transaction, deletes the value, and commits the transaction, then
+         * returns.
+         *
+         * If we encounter MDB_MAP_FULL, we will automatically retry the transaction after
+         * attempting to expand the database
+         *
+         * @param key
+         * @param value
+         * @return
+         */
+        Error del(const uint64_t &key, const serializer_t &value);
+
+        /**
+         * Simplified deletion of the given key with the given value. Automatically
+         * opens a transaction, deletes the value, and commits the transaction, then
+         * returns.
+         *
+         * If we encounter MDB_MAP_FULL, we will automatically retry the transaction after
+         * attempting to expand the database
+         *
+         * @tparam Value
+         * @param key
+         * @param value
+         * @return
+         */
+        template<typename Value> Error del(const uint64_t &key, const Value &value)
+        {
+            serializer_t i_value;
+
+            value.serialize(i_value);
+
+            return del(key, i_value);
+        }
 
         /**
          * Empties all of the key/value pairs from the database
@@ -328,68 +419,165 @@ namespace Database
         /**
          * Returns if the given key exists in the database
          *
-         * @tparam KeyType
          * @param key
          * @return
          */
-        template<typename KeyType> bool exists(const KeyType &key);
+        bool exists(const serializer_t &key);
+
+        /**
+         * Returns if the given key exists in the database
+         *
+         * @tparam Key
+         * @param key
+         * @return
+         */
+        template<typename Key> bool exists(const Key &key)
+        {
+            serializer_t i_key;
+
+            key.serialize(i_key);
+
+            return exists(i_key);
+        }
+
+        /**
+         * Returns if the given key exists in the database
+         *
+         * @param key
+         * @return
+         */
+        bool exists(const uint64_t &key);
 
         /**
          * Simplified retrieval of the value at the specified key which opens a new
          * readonly transaction, retrieves the value, and then returns it as the
          * specified type
          *
-         * @tparam KeyType
-         * @tparam ValueType
          * @param key
          * @return
          */
-        template<typename KeyType, typename ValueType> std::tuple<Error, ValueType> get(const KeyType &key);
+        std::tuple<Error, deserializer_t> get(const serializer_t &key);
 
         /**
          * Simplified retrieval of the value at the specified key which opens a new
          * readonly transaction, retrieves the value, and then returns it as the
          * specified type
          *
-         * @tparam ValueType
+         * @tparam Key
          * @param key
          * @return
          */
-        template<typename ValueType> std::tuple<Error, ValueType> get(const uint64_t &key);
+        template<typename Key> std::tuple<Error, deserializer_t> get(const Key &key)
+        {
+            serializer_t i_key;
+
+            key.serialize(i_key);
+
+            auto [error, i_value] = get(i_key);
+
+            if (error)
+            {
+                return {error, {}};
+            }
+
+            return {error, i_value};
+        }
 
         /**
          * Simplified retrieval of the value at the specified key which opens a new
-         * readonly transaction, retrieves the value, and then returns it
+         * readonly transaction, retrieves the value, and then returns it as the
+         * specified type
          *
-         * @tparam KeyType
+         * @tparam Value
+         * @tparam Key
          * @param key
          * @return
          */
-        template<typename KeyType> std::tuple<Error, std::vector<uint8_t>> get(const KeyType &key);
+        template<typename Value, typename Key> std::tuple<Error, Value> get(const Key &key)
+        {
+            serializer_t i_key;
+
+            key.serialize(i_key);
+
+            auto [error, i_value] = get(i_key);
+
+            if (error)
+            {
+                return {error, {}};
+            }
+
+            Value value;
+
+            value.deserialize(i_value);
+
+            return {error, value};
+        }
 
         /**
-         * Simplifies retrieval of all keys and values in the database
+         * Simplified retrieval of the value at the specified key which opens a new
+         * readonly transaction, retrieves the value, and then returns it as the
+         * specified type
+         *
+         * @param key
+         * @return
+         */
+        std::tuple<Error, deserializer_t> get(const uint64_t &key);
+
+        /**
+         * Simplified retrieval of the value at the specified key which opens a new
+         * readonly transaction, retrieves the value, and then returns it as the
+         * specified type
+         *
+         * @tparam Value
+         * @param key
+         * @return
+         */
+        template<typename Value> std::tuple<Error, Value> get(const uint64_t &key)
+        {
+            auto [error, i_value] = get(key);
+
+            if (error)
+            {
+                return {error, {}};
+            }
+
+            Value value;
+
+            value.deserialize(i_value);
+
+            return {error, value};
+        }
+
+        /**
+         * Simplifies retrieval of all values for all keys in the database
          *
          * WARNING: Very likely slow with large key sets
          *
-         * @tparam KeyType
-         * @tparam ValueType
          * @return
          */
-        template<typename KeyType, typename ValueType> std::vector<ValueType> get_all()
+        std::vector<deserializer_t> get_all();
+
+        /**
+         * Simplifies retrieval of all values for all keys in the database
+         *
+         * WARNING: Very likely slow with large key sets
+         *
+         * @tparam Value
+         * @return
+         */
+        template<typename Value> std::vector<Value> get_all()
         {
-            std::vector<ValueType> results;
+            std::vector<Value> results;
 
-            const auto keys = list_keys<KeyType>();
+            auto all = get_all();
 
-            for (const auto &key : keys)
+            for (auto &reader : all)
             {
-                const auto [error, value] = get<KeyType, ValueType>(key);
+                Value value;
 
-                if (!error)
-                {
-                    results.push_back(value);
-                }
+                value.deserialize(reader);
+
+                results.push_back(value);
             }
 
             return results;
@@ -403,62 +591,133 @@ namespace Database
         std::tuple<Error, unsigned int> get_flags();
 
         /**
-         * List all keys in the database
-         *
-         * @tparam KeyType
-         * @param ignore_duplicates whether we should ignore duplicate keys
-         * @return
-         */
-        template<typename KeyType> std::vector<KeyType> list_keys(bool ignore_duplicates = true);
-
-        /**
-         * Simplified put which opens a new transaction, puts the value, and then returns.
-         *
-         * If we encounter MDB_MAP_FULL, we will automatically retry the transaction after
-         * attempting to expand the database
-         *
-         * @tparam ValueType
-         * @param key
-         * @param value
-         * @return
-         */
-        template<typename ValueType> Error put(const uint64_t &key, const ValueType &value);
-
-        /**
-         * Simplified batch put which opens a new transaction, puts the value, and then returns.
-         *
-         * If we encounter MDB_MAP_FULL, we will automatically retry the transaction after
-         * attempting to expand the database
-         *
-         * @tparam KeyType
-         * @tparam ValueType
-         * @param keys
-         * @param values
-         * @return
-         */
-        template<typename KeyType, typename ValueType>
-        Error put(const std::vector<KeyType> &keys, const std::vector<ValueType> &values);
-
-        /**
-         * Simplified put which opens a new transaction, puts the value, and then returns.
-         *
-         * If we encounter MDB_MAP_FULL, we will automatically retry the transaction after
-         * attempting to expand the database
-         *
-         * @tparam KeyType
-         * @tparam ValueType
-         * @param key
-         * @param value
-         * @return
-         */
-        template<typename KeyType, typename ValueType> Error put(const KeyType &key, const ValueType &value);
-
-        /**
          * Returns the ID of the database
          *
          * @return
          */
         std::string id() const;
+
+        /**
+         * Lists all keys in the database
+         *
+         * @param ignore_duplicates
+         * @return
+         */
+        std::vector<deserializer_t> list_keys(bool ignore_duplicates = true);
+
+        /**
+         * Lists all keys in the database
+         *
+         * @tparam Key
+         * @param ignore_duplicates
+         * @return
+         */
+        template<typename Key> std::vector<Key> list_keys(bool ignore_duplicates = true)
+        {
+            std::vector<Key> results;
+
+            auto all = list_keys(ignore_duplicates);
+
+            for (auto &reader : all)
+            {
+                Key key;
+
+                key.deserialize(reader);
+
+                results.push_back(key);
+            }
+
+            return results;
+        }
+
+        /**
+         * Simplified put which opens a new transaction, puts the value, and then returns.
+         *
+         * If we encounter MDB_MAP_FULL, we will automatically retry the transaction after
+         * attempting to expand the database
+         *
+         * @param key
+         * @param value
+         * @param flags
+         * @return
+         */
+        Error put(const serializer_t &key, const serializer_t &value, int flags = 0);
+
+        /**
+         * Simplified put which opens a new transaction, puts the value, and then returns.
+         *
+         * If we encounter MDB_MAP_FULL, we will automatically retry the transaction after
+         * attempting to expand the database
+         *
+         * @param key
+         * @param flags
+         * @return
+         */
+        template<typename Key> Error put(const Key &key, int flags = 0)
+        {
+            serializer_t i_key, i_value;
+
+            key.serializer(i_key);
+
+            return put(i_key, i_value, flags);
+        }
+
+        /**
+         * Simplified put which opens a new transaction, puts the value, and then returns.
+         *
+         * If we encounter MDB_MAP_FULL, we will automatically retry the transaction after
+         * attempting to expand the database
+         *
+         * @tparam Key
+         * @tparam Value
+         * @param key
+         * @param value
+         * @param flags
+         * @return
+         */
+        template<typename Key, typename Value> Error put(const Key &key, const Value &value, int flags = 0)
+        {
+            serializer_t i_key, i_value;
+
+            key.serialize(i_key);
+
+            value.serialize(i_value);
+
+            return put(i_key, i_value, flags);
+        }
+
+        /**
+         * Simplified put which opens a new transaction, puts the value, and then returns.
+         *
+         * If we encounter MDB_MAP_FULL, we will automatically retry the transaction after
+         * attempting to expand the database
+         *
+         * @param key
+         * @param value
+         * @param flags
+         * @return
+         */
+        Error put(const uint64_t &key, const serializer_t &value, int flags = 0);
+
+        /**
+         * Simplified put which opens a new transaction, puts the value, and then returns.
+         *
+         * If we encounter MDB_MAP_FULL, we will automatically retry the transaction after
+         * attempting to expand the database
+         *
+         * @tparam Value
+         * @param key
+         * @param value
+         * @return
+         */
+        template<typename Value> Error put(const uint64_t &key, const Value &value, int flags = 0)
+        {
+            serializer_t i_value;
+
+            value.serialize(i_value);
+
+            return put(key, i_value, flags);
+        }
 
         /**
          * Opens a transaction in the database
@@ -544,17 +803,62 @@ namespace Database
         /**
          * Deletes the provided key
          *
-         * @tparam KeyType
          * @param key
          * @return
          */
-        template<typename KeyType> Error del(const KeyType &key)
+        Error del(const serializer_t &key);
+
+        /**
+         * Deletes the provided key
+         *
+         * @tparam Key
+         * @param key
+         * @return
+         */
+        template<typename Key> Error del(const Key &key)
         {
-            MDB_VAL(key, i_key);
+            serializer_t i_key;
 
-            const auto result = mdb_del(*m_txn, *m_db, &i_key, nullptr);
+            key.serialize(i_key);
 
-            return MAKE_ERROR_MSG(result, MDB_STR_ERR(result));
+            return del(i_key);
+        }
+
+        /**
+         * Deletes the provided key with the provided value.
+         *
+         * If the database supports sorted duplicates and the data parameter is NULL, all of the duplicate data items
+         * for the key will be deleted. Otherwise, if the data parameter is non-NULL only the matching data item will
+         * be deleted.
+         *
+         * @param key
+         * @param value
+         * @return
+         */
+        Error del(const serializer_t &key, const serializer_t &value);
+
+        /**
+         * Deletes the provided key with the provided value.
+         *
+         * If the database supports sorted duplicates and the data parameter is NULL, all of the duplicate data items
+         * for the key will be deleted. Otherwise, if the data parameter is non-NULL only the matching data item will
+         * be deleted.
+         *
+         * @tparam Key
+         * @tparam Value
+         * @param key
+         * @param value
+         * @return
+         */
+        template<typename Key, typename Value> Error del(const Key &key, const Value &value)
+        {
+            serializer_t i_key, i_value;
+
+            key.serialize(i_key);
+
+            value.serialize(i_value);
+
+            return del(i_key, i_value);
         }
 
         /**
@@ -563,14 +867,7 @@ namespace Database
          * @param key
          * @return
          */
-        Error del(const uint64_t &key)
-        {
-            MDB_VAL_NUM(key, i_key);
-
-            const auto result = mdb_del(*m_txn, *m_db, &i_key, nullptr);
-
-            return MAKE_ERROR_MSG(result, MDB_STR_ERR(result));
-        }
+        Error del(const uint64_t &key);
 
         /**
          * Deletes the provided key with the provided value.
@@ -579,22 +876,11 @@ namespace Database
          * for the key will be deleted. Otherwise, if the data parameter is non-NULL only the matching data item will
          * be deleted.
          *
-         * @tparam KeyType
-         * @tparam ValueType
          * @param key
          * @param value
          * @return
          */
-        template<typename KeyType, typename ValueType> Error del(const KeyType &key, const ValueType &value)
-        {
-            MDB_VAL(key, i_key);
-
-            MDB_VAL(value, i_value);
-
-            const auto result = mdb_del(*m_txn, *m_db, &i_key, &i_value);
-
-            return MAKE_ERROR_MSG(result, MDB_STR_ERR(result));
-        }
+        Error del(const uint64_t &key, const serializer_t &value);
 
         /**
          * Deletes the provided key with the provided value.
@@ -603,38 +889,42 @@ namespace Database
          * for the key will be deleted. Otherwise, if the data parameter is non-NULL only the matching data item will
          * be deleted.
          *
-         * @tparam ValueType
+         * @tparam Value
          * @param key
          * @param value
          * @return
          */
-        template<typename ValueType> Error del(const uint64_t &key, const ValueType &value)
+        template<typename Value> Error del(const uint64_t &key, const Value &value)
         {
-            MDB_VAL_NUM(key, i_key);
+            serializer_t i_value;
 
-            MDB_VAL(value, i_value);
+            value.serialize(i_value);
 
-            const auto result = mdb_del(*m_txn, *m_db, &i_key, &i_value);
-
-            return MAKE_ERROR_MSG(result, MDB_STR_ERR(result));
+            return del(key, i_value);
         }
 
         /**
          * Checks if the given key exists in the database
          *
-         * @tparam KeyType
          * @param key
          * @return
          */
-        template<typename KeyType> bool exists(const KeyType &key)
+        bool exists(const serializer_t &key);
+
+        /**
+         * Checks if the given key exists in the database
+         *
+         * @tparam Key
+         * @param key
+         * @return
+         */
+        template<typename Key> bool exists(const Key &key)
         {
-            MDB_VAL(key, i_key);
+            serializer_t i_key;
 
-            MDB_val value;
+            key.serialize(i_key);
 
-            const auto result = mdb_get(*m_txn, *m_db, &i_key, &value);
-
-            return result == MDB_SUCCESS;
+            return exists(i_key);
         }
 
         /**
@@ -646,80 +936,64 @@ namespace Database
         bool exists(const uint64_t &key);
 
         /**
-         * Retrieves the value stored with the specified key as the specified type
+         * Retrieves the value stored with the specified key
          *
-         * @tparam KeyType
-         * @tparam ValueType
          * @param key
          * @return
          */
-        template<typename KeyType, typename ValueType> std::tuple<Error, ValueType> get(const KeyType &key)
-        {
-            const auto [error, data] = get(key);
-
-            ValueType result;
-
-            if (!error)
-            {
-                result = ValueType(data);
-            }
-
-            return {error, result};
-        }
+        std::tuple<Error, deserializer_t> get(const serializer_t &key);
 
         /**
-         * Retrieves the value stored with the specified key as the specified type
+         * Retrieves the value stored with the specified key
          *
-         * @tparam ValueType
+         * @tparam Key
          * @param key
          * @return
          */
-        template<typename ValueType> std::tuple<Error, ValueType> get(const uint64_t &key)
+        template<typename Key> std::tuple<Error, deserializer_t> get(const Key &key)
         {
-            MDB_VAL_NUM(key, i_key);
+            serializer_t i_key;
 
-            MDB_val value;
+            key.serialize(i_key);
 
-            const auto result = mdb_get(*m_txn, *m_db, &i_key, &value);
-
-            std::vector<uint8_t> data;
-
-            ValueType _value;
-
-            if (result == MDB_SUCCESS)
-            {
-                data = FROM_MDB_VAL(value);
-
-                _value = ValueType(data);
-            }
-
-            return {MAKE_ERROR_MSG(result, MDB_STR_ERR(result)), _value};
+            return get(i_key);
         }
 
         /**
          * Retrieves the value stored with the specified key
          *
-         * @tparam KeyType
+         * @tparam Key
+         * @tparam Value
          * @param key
-         * @return [found, value]
+         * @return
          */
-        template<typename KeyType> std::tuple<Error, std::vector<uint8_t>> get(const KeyType &key)
+        template<typename Value, typename Key> std::tuple<Error, Value> get(const Key &key)
         {
-            MDB_VAL(key, i_key);
+            serializer_t i_key;
 
-            MDB_val value;
+            key.serialize(i_key);
 
-            const auto result = mdb_get(*m_txn, *m_db, &i_key, &value);
+            auto [error, i_value] = get(i_key);
 
-            std::vector<uint8_t> results;
-
-            if (result == MDB_SUCCESS)
+            if (error)
             {
-                results = FROM_MDB_VAL(value);
+                return {error, {}};
             }
 
-            return {MAKE_ERROR_MSG(result, MDB_STR_ERR(result)), results};
+            Value value;
+
+            value.deserialize(i_value);
+
+            return {error, value};
         }
+
+        /**
+         * Retrieves the value stored with the specified key
+         *
+         * @param key
+         * @return
+         */
+        std::tuple<Error, deserializer_t> get(const uint64_t &key);
 
         /**
          * Returns the transaction ID
@@ -737,23 +1011,32 @@ namespace Database
          * yourself as you will very likely need to abort the current transaction and expand
          * the LMDB environment before re-attempting the transaction.
          *
-         * @tparam KeyType
-         * @tparam ValueType
          * @param key
          * @param value
          * @param flags
          * @return
          */
-        template<typename KeyType, typename ValueType>
-        Error put(const KeyType &key, const ValueType &value, int flags = 0)
+        Error put(const serializer_t &key, const serializer_t &value, int flags = 0);
+
+        /**
+         * Puts the specified value with the specified key in the database using the specified flag(s)
+         *
+         * Note: You must check for MDB_MAP_FULL or MDB_TXN_FULL response values and handle those
+         * yourself as you will very likely need to abort the current transaction and expand
+         * the LMDB environment before re-attempting the transaction.
+         *
+         * @tparam Key
+         * @param key
+         * @param flags
+         * @return
+         */
+        template<typename Key> Error put(const Key &key, int flags = 0)
         {
-            MDB_VAL(key, i_key);
+            serializer_t i_key, i_value;
 
-            MDB_VAL(value, i_value);
+            key.serialize(i_key);
 
-            const auto result = mdb_put(*m_txn, *m_db, &i_key, &i_value, flags);
-
-            return MAKE_ERROR_MSG(result, MDB_STR_ERR(result));
+            return put(i_key, i_value, flags);
         }
 
         /**
@@ -763,21 +1046,58 @@ namespace Database
          * yourself as you will very likely need to abort the current transaction and expand
          * the LMDB environment before re-attempting the transaction.
          *
-         * @tparam ValueType
+         * @tparam Key
+         * @tparam Value
          * @param key
          * @param value
          * @param flags
          * @return
          */
-        template<typename ValueType> Error put(const uint64_t &key, const ValueType &value, int flags = 0)
+        template<typename Key, typename Value> Error put(const Key &key, const Value &value, int flags = 0)
         {
-            MDB_VAL_NUM(key, i_key);
+            serializer_t i_key, i_value;
 
-            MDB_VAL(value, i_value);
+            key.serialize(i_key);
 
-            const auto result = mdb_put(*m_txn, *m_db, &i_key, &i_value, flags);
+            value.serialize(i_value);
 
-            return MAKE_ERROR_MSG(result, MDB_STR_ERR(result));
+            return put(i_key, i_value, flags);
+        }
+
+        /**
+         * Puts the specified value with the specified key in the database using the specified flag(s)
+         *
+         * Note: You must check for MDB_MAP_FULL or MDB_TXN_FULL response values and handle those
+         * yourself as you will very likely need to abort the current transaction and expand
+         * the LMDB environment before re-attempting the transaction.
+         *
+         * @param key
+         * @param value
+         * @param flags
+         * @return
+         */
+        Error put(const uint64_t &key, const serializer_t &value, int flags = 0);
+
+        /**
+         * Puts the specified value with the specified key in the database using the specified flag(s)
+         *
+         * Note: You must check for MDB_MAP_FULL or MDB_TXN_FULL response values and handle those
+         * yourself as you will very likely need to abort the current transaction and expand
+         * the LMDB environment before re-attempting the transaction.
+         *
+         * @tparam Value
+         * @param key
+         * @param value
+         * @param flags
+         * @return
+         */
+        template<typename Value> Error put(const uint64_t &key, const Value &value, int flags = 0)
+        {
+            serializer_t i_value;
+
+            value.serialize(i_value);
+
+            return put(key, i_value, flags);
         }
 
         /**
@@ -858,42 +1178,66 @@ namespace Database
         Error del(int flags = 0);
 
         /**
-         * Retrieve key/data pairs by cursor.
+         * Retrieve key/value pairs by cursor.
          *
          * @param op
-         * @return [found, key, value]
+         * @return
          */
-        std::tuple<Error, std::vector<uint8_t>, std::vector<uint8_t>> get(const MDB_cursor_op &op = MDB_FIRST);
+        std::tuple<Error, deserializer_t, deserializer_t> get(const MDB_cursor_op &op = MDB_FIRST);
 
         /**
-         * Retrieve key/data pairs by cursor.
+         * Retrieve key/value pairs by cursor.
          *
-         * @tparam KeyType
-         * @tparam ValueType
+         * @tparam Key
          * @param op
-         * @return [found, key, value]
+         * @return
          */
-        template<typename KeyType, typename ValueType>
-        std::tuple<Error, KeyType, ValueType> get(const MDB_cursor_op &op = MDB_FIRST)
+        template<typename Key> std::tuple<Error, Key, deserializer_t> get(const MDB_cursor_op &op = MDB_FIRST)
         {
-            const auto [error, r_key, r_value] = get(op);
+            auto [error, i_key, i_value] = get(op);
 
-            KeyType key;
-
-            ValueType value;
-
-            if (!error)
+            if (error)
             {
-                key = KeyType(r_key);
-
-                value = ValueType(r_value);
+                return {error, {}, {}};
             }
+
+            Key key;
+
+            key.deserialize(i_key);
+
+            return {error, key, i_value};
+        }
+
+        /**
+         * Retrieve key/value pairs by cursor.
+         *
+         * @tparam Key
+         * @tparam Value
+         * @param op
+         * @return
+         */
+        template<typename Key, typename Value> std::tuple<Error, Key, Value> get(const MDB_cursor_op &op = MDB_FIRST)
+        {
+            auto [error, i_key, i_value] = get(op);
+
+            if (error)
+            {
+                return {error, {}, {}};
+            }
+
+            Key key;
+
+            key.deserialize(i_key);
+
+            Value value;
+
+            value.deserialize(i_value);
 
             return {error, key, value};
         }
 
         /**
-         * Retrieve key/data pairs by cursor.
+         * Retrieve key/value pairs by cursor.
          *
          * Providing the key, allows for utilizing additional MDB_cursor_op values such as MDB_SET which will
          * retrieve the value for the specified key without changing the key value.
@@ -902,94 +1246,116 @@ namespace Database
          * @param op
          * @return
          */
-        std::tuple<Error, uint64_t, std::vector<uint8_t>> get(const uint64_t &key, const MDB_cursor_op &op = MDB_SET);
+        std::tuple<Error, deserializer_t, deserializer_t>
+            get(const serializer_t &key, const MDB_cursor_op &op = MDB_SET);
 
         /**
-         * Retrieve key/data pairs by cursor.
+         * Retrieve key/value pairs by cursor.
          *
          * Providing the key, allows for utilizing additional MDB_cursor_op values such as MDB_SET which will
          * retrieve the value for the specified key without changing the key value.
          *
-         * @tparam ValueType
+         * @tparam Key
          * @param key
          * @param op
          * @return
          */
-        template<typename ValueType>
-        std::tuple<Error, uint64_t, ValueType> get(const uint64_t &key, const MDB_cursor_op &op = MDB_SET)
+        template<typename Key>
+        std::tuple<Error, Key, deserializer_t> get(const Key &key, const MDB_cursor_op &op = MDB_SET)
         {
-            const auto [error, result_key, data] = get(key, op);
+            serializer_t i_key;
+
+            key.serialize(i_key);
+
+            auto [error, r_key, f_value] = get(i_key, op);
 
             if (error)
             {
-                return {error, 0, {}};
+                return {error, {}, {}};
             }
 
-            return {error, result_key, ValueType(data)};
+            Key f_key;
+
+            f_key.deserialize(r_key);
+
+            return {error, f_key, f_value};
         }
 
         /**
-         * Retrieve key/data pairs by cursor.
+         * Retrieve key/value pairs by cursor.
          *
          * Providing the key, allows for utilizing additional MDB_cursor_op values such as MDB_SET which will
          * retrieve the value for the specified key without changing the key value.
          *
-         * @tparam KeyType
+         * @tparam Value
+         * @tparam Key
          * @param key
          * @param op
-         * @return [found, key, value]
+         * @return
          */
-        template<typename KeyType>
-        std::tuple<Error, std::vector<uint8_t>, std::vector<uint8_t>>
-            get(const KeyType &key, const MDB_cursor_op &op = MDB_SET)
+        template<typename Value, typename Key>
+        std::tuple<Error, Key, Value> get(const Key &key, const MDB_cursor_op &op = MDB_SET)
         {
-            MDB_val i_value;
+            serializer_t i_key;
 
-            MDB_VAL(key, i_key);
+            key.serialize(i_key);
 
-            const auto result = mdb_cursor_get(m_cursor, &i_key, &i_value, op);
+            auto [error, r_key, r_value] = get(i_key, op);
 
-            std::vector<uint8_t> r_key, r_value;
-
-            if (result == MDB_SUCCESS)
+            if (error)
             {
-                r_key = FROM_MDB_VAL(i_key);
-
-                r_value = FROM_MDB_VAL(i_value);
+                return {error, {}, {}};
             }
 
-            return {MAKE_ERROR_MSG(result, MDB_STR_ERR(result)), r_key, r_value};
+            Key f_key;
+
+            f_key.deserialize(r_key);
+
+            Value f_value;
+
+            f_value.deserialize(r_value);
+
+            return {error, f_key, f_value};
         }
 
         /**
-         * Retrieve key/data pairs by cursor.
+         * Retrieve key/value pairs by cursor.
          *
          * Providing the key, allows for utilizing additional MDB_cursor_op values such as MDB_SET which will
          * retrieve the value for the specified key without changing the key value.
          *
-         * @tparam KeyType
-         * @tparam ValueType
          * @param key
          * @param op
-         * @return [found, key, value]
+         * @return
          */
-        template<typename KeyType, typename ValueType>
-        std::tuple<Error, KeyType, ValueType> get(const KeyType &key, const MDB_cursor_op &op = MDB_SET)
+        std::tuple<Error, uint64_t, deserializer_t> get(const uint64_t &key, const MDB_cursor_op &op = MDB_SET);
+
+        /**
+         * Retrieve key/value pairs by cursor.
+         *
+         * Providing the key, allows for utilizing additional MDB_cursor_op values such as MDB_SET which will
+         * retrieve the value for the specified key without changing the key value.
+         *
+         * @tparam Value
+         * @param key
+         * @param op
+         * @return
+         */
+        template<typename Value>
+        std::tuple<Error, uint64_t, Value> get(const uint64_t &key, const MDB_cursor_op &op = MDB_SET)
         {
-            const auto [error, i_key, i_value] = get(key, op);
+            auto [error, f_key, r_value] = get(key, op);
 
-            KeyType r_key;
-
-            ValueType r_value;
-
-            if (!error)
+            if (error)
             {
-                r_key = KeyType(i_key);
-
-                r_value = ValueType(i_value);
+                return {error, {}, {}};
             }
 
-            return {error, r_key, r_value};
+            Value value;
+
+            value.deserialize(r_value);
+
+            return {error, f_key, value};
         }
 
         /**
@@ -997,33 +1363,147 @@ namespace Database
          *
          * Requires that MDB_DUPSORT was used when opening the database
          *
-         * @tparam KeyType
-         * @tparam ValueType
          * @param key
-         * @return [found, key, values]
+         * @return
          */
-        template<typename KeyType, typename ValueType>
-        std::tuple<Error, KeyType, std::vector<ValueType>> get_all(const KeyType &key)
+        std::tuple<Error, deserializer_t, std::vector<deserializer_t>> get_all(const serializer_t &key);
+
+        /**
+         * Retrieve multiple values for a single key from the database
+         *
+         * Requires that MDB_DUPSORT was used when opening the database
+         *
+         * @tparam Key
+         * @param key
+         * @return
+         */
+        template<typename Key> std::tuple<Error, Key, std::vector<deserializer_t>> get_all(const Key &key)
         {
-            std::vector<ValueType> results;
+            serializer_t i_key;
 
-            bool success = false;
+            key.serialize(key);
 
-            do
+            return get_all(i_key);
+        }
+
+        /**
+         * Retrieve multiple values for a single key from the database
+         *
+         * Requires that MDB_DUPSORT was used when opening the database
+         *
+         * @tparam Value
+         * @tparam Key
+         * @param key
+         * @return
+         */
+        template<typename Value, typename Key> std::tuple<Error, Key, std::vector<Value>> get_all(const Key &key)
+        {
+            serializer_t i_key;
+
+            key.serialize(i_key);
+
+            auto [error, r_key, r_values] = get_all(i_key);
+
+            if (error)
             {
-                const auto [error, k, v] = get<KeyType, ValueType>(key, (!success) ? MDB_SET : MDB_NEXT_DUP);
+                return {error, {}, {}};
+            }
 
-                if (!error)
-                {
-                    results.push_back(v);
-                }
+            Key f_key;
 
-                success = error == SUCCESS;
-            } while (success);
+            f_key.deserialize(r_key);
 
-            Error error = (!results.empty()) ? SUCCESS : LMDB_EMPTY;
+            std::vector<Value> results;
 
-            return {error, key, results};
+            for (auto &reader : r_values)
+            {
+                Value r_value;
+
+                r_value.deserialize(reader);
+
+                results.push_back(r_value);
+            }
+
+            return {error, f_key, results};
+        }
+
+        /**
+         * Retrieve multiple values for a single key from the database
+         *
+         * Requires that MDB_DUPSORT was used when opening the database
+         *
+         * @param key
+         * @return
+         */
+        std::tuple<Error, uint64_t, std::vector<deserializer_t>> get_all(const uint64_t &key);
+
+        /**
+         * Retrieve multiple values for a single key from the database
+         *
+         * Requires that MDB_DUPSORT was used when opening the database
+         *
+         * @tparam Value
+         * @param key
+         * @return
+         */
+        template<typename Value> std::tuple<Error, uint64_t, std::vector<Value>> get_all(const uint64_t &key)
+        {
+            auto [error, f_key, r_values] = get_all(key);
+
+            if (error)
+            {
+                return {error, {}, {}};
+            }
+
+            std::vector<Value> results;
+
+            for (auto &reader : r_values)
+            {
+                Value r_value;
+
+                r_value.deserialize(reader);
+
+                results.push_back(r_value);
+            }
+
+            return {error, f_key, results};
+        };
+
+        /**
+         * Puts the specified value with the specified key in the database using the specified flag(s)
+         * and places the cursor at the position of the new item or, near it upon failure.
+         *
+         * Note: You must check for MDB_MAP_FULL or MDB_TXN_FULL response values and handle those
+         * yourself as you will very likely need to abort the current transaction and expand
+         * the LMDB environment before re-attempting the transaction.
+         *
+         * @param key
+         * @param value
+         * @param flags
+         * @return
+         */
+        Error put(const serializer_t &key, const serializer_t &value, int flags = 0);
+
+        /**
+         * Puts the specified value with the specified key in the database using the specified flag(s)
+         * and places the cursor at the position of the new item or, near it upon failure.
+         *
+         * Note: You must check for MDB_MAP_FULL or MDB_TXN_FULL response values and handle those
+         * yourself as you will very likely need to abort the current transaction and expand
+         * the LMDB environment before re-attempting the transaction.
+         *
+         * @tparam Key
+         * @param key
+         * @param flags
+         * @return
+         */
+        template<class Key> Error put(const Key &key, int flags)
+        {
+            serializer_t i_key, i_value;
+
+            key.serialize(i_key);
+
+            return put(i_key, i_value, flags);
         }
 
         /**
@@ -1034,23 +1514,19 @@ namespace Database
          * yourself as you will very likely need to abort the current transaction and expand
          * the LMDB environment before re-attempting the transaction.
          *
-         * @tparam KeyType
-         * @tparam ValueType
+         * @tparam Key
          * @param key
          * @param value
          * @param flags
          * @return
          */
-        template<typename KeyType, typename ValueType>
-        Error put(const KeyType &key, const ValueType &value, int flags = 0)
+        template<typename Key> Error put(const Key &key, const serializer_t &value, int flags = 0)
         {
-            MDB_VAL(key, i_key);
+            serializer_t i_key;
 
-            MDB_VAL(value, i_value);
+            key.serialize(i_key);
 
-            const auto result = mdb_cursor_put(m_cursor, &i_key, &i_value, flags);
-
-            return MAKE_ERROR_MSG(result, MDB_STR_ERR(result));
+            return put(i_key, value, flags);
         }
 
         /**
@@ -1061,21 +1537,60 @@ namespace Database
          * yourself as you will very likely need to abort the current transaction and expand
          * the LMDB environment before re-attempting the transaction.
          *
-         * @tparam ValueType
+         * @tparam Key
+         * @tparam Value
          * @param key
          * @param value
          * @param flags
          * @return
          */
-        template<typename ValueType> Error put(const uint64_t &key, const ValueType &value, int flags = 0)
+        template<typename Key, typename Value> Error put(const Key &key, const Value &value, int flags = 0)
         {
-            MDB_VAL_NUM(key, i_key);
+            serializer_t i_key, i_value;
 
-            MDB_VAL(value, i_value);
+            key.serialize(i_key);
 
-            const auto result = mdb_cursor_put(m_cursor, &i_key, &i_value, flags);
+            value.serialize(i_value);
 
-            return MAKE_ERROR_MSG(result, MDB_STR_ERR(result));
+            return put(i_key, i_value, flags);
+        }
+
+        /**
+         * Puts the specified value with the specified key in the database using the specified flag(s)
+         * and places the cursor at the position of the new item or, near it upon failure.
+         *
+         * Note: You must check for MDB_MAP_FULL or MDB_TXN_FULL response values and handle those
+         * yourself as you will very likely need to abort the current transaction and expand
+         * the LMDB environment before re-attempting the transaction.
+         *
+         * @param key
+         * @param value
+         * @param flags
+         * @return
+         */
+        Error put(const uint64_t &key, const serializer_t &value, int flags = 0);
+
+        /**
+         * Puts the specified value with the specified key in the database using the specified flag(s)
+         * and places the cursor at the position of the new item or, near it upon failure.
+         *
+         * Note: You must check for MDB_MAP_FULL or MDB_TXN_FULL response values and handle those
+         * yourself as you will very likely need to abort the current transaction and expand
+         * the LMDB environment before re-attempting the transaction.
+         *
+         * @tparam Value
+         * @param key
+         * @param value
+         * @param flags
+         * @return
+         */
+        template<typename Value> Error put(const uint64_t &key, const Value &value, int flags = 0)
+        {
+            serializer_t i_value;
+
+            value.serialize(i_value);
+
+            return put(key, i_value, flags);
         }
 
         /**
@@ -1094,195 +1609,6 @@ namespace Database
 
         bool m_readonly;
     };
-
-    /**
-     * Complete the template forward declarations. Check the forward declarations for
-     * more information regarding each method
-     */
-
-    template<typename KeyType> Error LMDBDatabase::del(const KeyType &key)
-    {
-    try_again:
-        auto txn = transaction();
-
-        auto error = txn->del(key);
-
-        MDB_CHECK_TXN_EXPAND(error, m_env, txn, try_again);
-
-        if (error)
-        {
-            return error;
-        }
-
-        error = txn->commit();
-
-        MDB_CHECK_TXN_EXPAND(error, m_env, txn, try_again);
-
-        return error;
-    }
-
-    template<typename KeyType, typename ValueType> Error LMDBDatabase::del(const KeyType &key, const ValueType &value)
-    {
-    try_again:
-        auto txn = transaction();
-
-        auto error = txn->del(key, value);
-
-        MDB_CHECK_TXN_EXPAND(error, m_env, txn, try_again);
-
-        if (error)
-        {
-            return error;
-        }
-
-        error = txn->commit();
-
-        MDB_CHECK_TXN_EXPAND(error, m_env, txn, try_again);
-
-        return error;
-    }
-
-    template<typename KeyType> bool LMDBDatabase::exists(const KeyType &key)
-    {
-        auto txn = transaction(true);
-
-        return txn->exists(key);
-    }
-
-    template<typename KeyType, typename ValueType> std::tuple<Error, ValueType> LMDBDatabase::get(const KeyType &key)
-    {
-        const auto [error, data] = get(key);
-
-        ValueType result;
-
-        if (!error)
-        {
-            result = ValueType(data);
-        }
-
-        return {error, result};
-    }
-
-    template<typename ValueType> std::tuple<Error, ValueType> LMDBDatabase::get(const uint64_t &key)
-    {
-        auto txn = transaction(true);
-
-        return txn->get<ValueType>(key);
-    }
-
-    template<typename KeyType> std::tuple<Error, std::vector<uint8_t>> LMDBDatabase::get(const KeyType &key)
-    {
-        auto txn = transaction(true);
-
-        return txn->get(key);
-    }
-
-    template<typename KeyType> std::vector<KeyType> LMDBDatabase::list_keys(bool ignore_duplicates)
-    {
-        auto txn = transaction(true);
-
-        auto cursor = txn->cursor();
-
-        std::vector<KeyType> results;
-
-        MDB_val key, value;
-
-        size_t count = 0;
-
-        auto last_key = std::string();
-
-        while (mdb_cursor_get(*cursor, &key, &value, count ? MDB_NEXT : MDB_FIRST) == MDB_SUCCESS)
-        {
-            const auto bytes = FROM_MDB_VAL(key);
-
-            const auto val = Crypto::StringTools::to_hex(bytes.data(), bytes.size());
-
-            if (ignore_duplicates && val == last_key)
-            {
-                continue;
-            }
-
-            results.push_back(KeyType(bytes));
-
-            last_key = val;
-
-            count++;
-        }
-
-        return results;
-    }
-
-    template<typename ValueType> Error LMDBDatabase::put(const uint64_t &key, const ValueType &value)
-    {
-    try_again:
-        auto txn = transaction();
-
-        {
-            const auto error = txn->put(key, value);
-
-            MDB_CHECK_TXN_EXPAND(error, m_env, txn, try_again);
-
-            if (error)
-            {
-                return error;
-            }
-        }
-
-        const auto error = txn->commit();
-
-        MDB_CHECK_TXN_EXPAND(error, m_env, txn, try_again);
-
-        return error;
-    }
-
-    template<typename KeyType, typename ValueType>
-    Error LMDBDatabase::put(const std::vector<KeyType> &keys, const std::vector<ValueType> &values)
-    {
-        if (keys.size() != values.size())
-            throw std::invalid_argument("keys and values must be of the same size");
-
-    try_again:
-        auto txn = transaction();
-
-        for (size_t i = 0; i < keys.size(); ++i)
-        {
-            const auto error = txn->put(keys[i], values[i]);
-
-            MDB_CHECK_TXN_EXPAND(error, m_env, txn, try_again);
-
-            if (error)
-            {
-                return error;
-            }
-        }
-
-        const auto error = txn->commit();
-
-        MDB_CHECK_TXN_EXPAND(error, m_env, txn, try_again);
-
-        return error;
-    }
-
-    template<typename KeyType, typename ValueType> Error LMDBDatabase::put(const KeyType &key, const ValueType &value)
-    {
-    try_again:
-        auto txn = transaction();
-
-        auto error = txn->put(key, value);
-
-        MDB_CHECK_TXN_EXPAND(error, m_env, txn, try_again);
-
-        if (error)
-        {
-            return error;
-        }
-
-        error = txn->commit();
-
-        MDB_CHECK_TXN_EXPAND(error, m_env, txn, try_again);
-
-        return error;
-    }
 } // namespace Database
 
 #endif // DATABASE_LMDB_H

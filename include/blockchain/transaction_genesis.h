@@ -141,7 +141,7 @@ namespace Types::Blockchain
 
             for (const auto &output : outputs)
             {
-                output.serialize_output(writer);
+                output.serialize(writer);
             }
         }
 
@@ -174,7 +174,7 @@ namespace Types::Blockchain
                 {
                     for (const auto &output : outputs)
                     {
-                        output.output_toJSON(writer);
+                        output.toJSON(writer);
                     }
                 }
                 writer.EndArray();
