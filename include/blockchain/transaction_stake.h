@@ -53,7 +53,7 @@ namespace Types::Blockchain
 
         [[nodiscard]] Error check_construction() const override
         {
-            if (version != 1)
+            if (version != 1 && version != 2)
             {
                 return MAKE_ERROR(TX_INVALID_VERSION);
             }
@@ -312,7 +312,7 @@ namespace Types::Blockchain
 
         [[nodiscard]] Error check_construction() const override
         {
-            if (version != 1)
+            if (version != 1 && version != 2)
             {
                 return MAKE_ERROR(TX_INVALID_VERSION);
             }
@@ -391,6 +391,17 @@ namespace Types::Blockchain
             if (staker_public_spend_key.empty())
             {
                 return MAKE_ERROR(TX_PUBLIC_SPEND_KEY_NOT_FOUND);
+            }
+
+            /**
+             * Make sure that the public keys in use in the staking information
+             * do not overlap each other as that would be very bad if any were
+             * compromised
+             */
+            if (candidate_public_key == staker_public_view_key || candidate_public_key == staker_public_spend_key
+                || staker_public_view_key == staker_public_view_key)
+            {
+                return MAKE_ERROR(TX_STAKING_PUBLIC_KEYS_REUSE);
             }
 
             // check that the transaction is in balance

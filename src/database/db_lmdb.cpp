@@ -7,11 +7,10 @@
 #include <cppfs/FileHandle.h>
 #include <cppfs/fs.h>
 #include <hashing.h>
-#include <utility>
 
 #define LMDB_SPACE_MULTIPLIER (1024 * 1024) // to MB
 
-std::map<std::string, std::shared_ptr<Database::LMDB>> l_environments;
+static ThreadSafeMap<crypto_hash_t, std::shared_ptr<Database::LMDB>> instances;
 
 namespace Database
 {
@@ -47,9 +46,9 @@ namespace Database
 
         m_env = nullptr;
 
-        if (l_environments.find(m_id) != l_environments.end())
+        if (instances.contains(m_id))
         {
-            l_environments.erase(m_id);
+            instances.erase(m_id);
         }
 
         return MAKE_ERROR(SUCCESS);
@@ -123,9 +122,9 @@ namespace Database
         return MAKE_ERROR_MSG(result, MDB_STR_ERR(result));
     }
 
-    std::shared_ptr<LMDBDatabase> LMDB::get_database(const std::string &id)
+    std::shared_ptr<LMDBDatabase> LMDB::get_database(const crypto_hash_t &id)
     {
-        if (m_databases.find(id) != m_databases.end())
+        if (m_databases.contains(id))
         {
             return m_databases.at(id);
         }
@@ -147,94 +146,14 @@ namespace Database
         return {MAKE_ERROR_MSG(result, MDB_STR_ERR(result)), env_flags};
     }
 
-    std::shared_ptr<LMDB> LMDB::get_instance(const std::string &id)
+    std::shared_ptr<LMDB> LMDB::instance(const crypto_hash_t &id)
     {
-        if (l_environments.find(id) != l_environments.end())
+        if (instances.contains(id))
         {
-            return l_environments.at(id);
+            return instances.at(id);
         }
 
         throw std::invalid_argument("LMDB environment not found");
-    }
-
-    std::shared_ptr<LMDB> LMDB::getInstance(
-        const std::string &path,
-        int flags,
-        int mode,
-        size_t growth_factor,
-        unsigned int max_databases)
-    {
-        auto id = Crypto::Hashing::sha3(path.data(), path.size()).to_string();
-
-        if (l_environments.find(id) != l_environments.end())
-        {
-            return l_environments.at(id);
-        }
-
-        auto db = std::make_shared<LMDB>();
-
-        db->m_growth_factor = growth_factor;
-
-        db->m_env = nullptr;
-
-        db->m_open_txns = 0;
-
-        db->m_id = id;
-
-        auto file = cppfs::fs::open(path);
-
-        if (flags & MDB_NOSUBDIR)
-        {
-            if (file.exists() && !file.isFile())
-            {
-                throw std::runtime_error("LMDB path must be a regular file.");
-            }
-        }
-        else
-        {
-            if (!file.isDirectory())
-            {
-                file.createDirectory();
-            }
-        }
-
-        auto success = mdb_env_create(&db->m_env);
-
-        if (success != MDB_SUCCESS)
-        {
-            throw std::runtime_error("Could not create LMDB environment: " + MDB_STR_ERR(success));
-        }
-
-        success = mdb_env_set_mapsize(db->m_env, growth_factor * LMDB_SPACE_MULTIPLIER);
-
-        if (success != MDB_SUCCESS)
-        {
-            throw std::runtime_error("Could not allocate initial LMDB memory map: " + MDB_STR_ERR(success));
-        }
-
-        success = mdb_env_set_maxdbs(db->m_env, max_databases);
-
-        if (success != MDB_SUCCESS)
-        {
-            throw std::runtime_error("Could not set maximum number of LMDB named databases: " + MDB_STR_ERR(success));
-        }
-
-        /**
-         * A transaction and its cursors must only be used by a single thread, and a thread may only have a single
-         * write transaction at a time. If MDB_NOTLS is in use, this does not apply to read-only transactions.
-         */
-        success = mdb_env_open(db->m_env, path.c_str(), flags | MDB_NOTLS, mode);
-
-        if (success != MDB_SUCCESS)
-        {
-            mdb_env_close(db->m_env);
-
-            throw std::runtime_error("Could not open LMDB database file: " + path + ": " + MDB_STR_ERR(success));
-        }
-
-        l_environments.insert({id, db});
-
-        return db;
     }
 
     size_t LMDB::growth_factor() const
@@ -242,7 +161,7 @@ namespace Database
         return m_growth_factor;
     }
 
-    std::string LMDB::id() const
+    crypto_hash_t LMDB::id() const
     {
         return m_id;
     }
@@ -259,6 +178,81 @@ namespace Database
         const auto result = mdb_env_info(m_env, &info);
 
         return {MAKE_ERROR_MSG(result, MDB_STR_ERR(result)), info};
+    }
+
+    std::shared_ptr<LMDB>
+        LMDB::instance(const std::string &path, int flags, int mode, size_t growth_factor, unsigned int max_databases)
+    {
+        const auto id = Crypto::Hashing::sha3(path.data(), path.size());
+
+        if (!instances.contains(id))
+        {
+            auto db = std::make_shared<LMDB>();
+
+            db->m_growth_factor = growth_factor;
+
+            db->m_env = nullptr;
+
+            db->m_open_txns = 0;
+
+            db->m_id = id;
+
+            auto file = cppfs::fs::open(path);
+
+            if (flags & MDB_NOSUBDIR)
+            {
+                if (file.exists() && !file.isFile())
+                {
+                    throw std::runtime_error("LMDB path must be a regular file.");
+                }
+            }
+            else
+            {
+                if (!file.isDirectory())
+                {
+                    file.createDirectory();
+                }
+            }
+
+            auto success = mdb_env_create(&db->m_env);
+
+            if (success != MDB_SUCCESS)
+            {
+                throw std::runtime_error("Could not create LMDB environment: " + MDB_STR_ERR(success));
+            }
+
+            success = mdb_env_set_mapsize(db->m_env, growth_factor * LMDB_SPACE_MULTIPLIER);
+
+            if (success != MDB_SUCCESS)
+            {
+                throw std::runtime_error("Could not allocate initial LMDB memory map: " + MDB_STR_ERR(success));
+            }
+
+            success = mdb_env_set_maxdbs(db->m_env, max_databases);
+
+            if (success != MDB_SUCCESS)
+            {
+                throw std::runtime_error(
+                    "Could not set maximum number of LMDB named databases: " + MDB_STR_ERR(success));
+            }
+
+            /**
+             * A transaction and its cursors must only be used by a single thread, and a thread may only have a single
+             * write transaction at a time. If MDB_NOTLS is in use, this does not apply to read-only transactions.
+             */
+            success = mdb_env_open(db->m_env, path.c_str(), flags | MDB_NOTLS, mode);
+
+            if (success != MDB_SUCCESS)
+            {
+                mdb_env_close(db->m_env);
+
+                throw std::runtime_error("Could not open LMDB database file: " + path + ": " + MDB_STR_ERR(success));
+            }
+
+            instances.insert(id, db);
+        }
+
+        return instances.at(id);
     }
 
     std::tuple<Error, size_t> LMDB::memory_to_pages(size_t memory) const
@@ -296,20 +290,18 @@ namespace Database
 
     std::shared_ptr<LMDBDatabase> LMDB::open_database(const std::string &name, int flags)
     {
-        auto id = Crypto::Hashing::sha3(name.data(), name.size()).to_string();
+        auto id = Crypto::Hashing::sha3(name.data(), name.size());
 
-        if (m_databases.find(id) != m_databases.end())
+        if (!m_databases.contains(id))
         {
-            return m_databases.at(id);
+            auto env = LMDB::instance(m_id);
+
+            auto db = std::make_shared<LMDBDatabase>(env, name, flags);
+
+            m_databases.insert(id, db);
         }
 
-        auto env = LMDB::get_instance(m_id);
-
-        auto db = std::make_shared<LMDBDatabase>(env, name, flags);
-
-        m_databases.insert({id, db});
-
-        return db;
+        return m_databases.at(id);
     }
 
     size_t LMDB::open_transactions() const
@@ -344,7 +336,7 @@ namespace Database
 
     std::unique_ptr<LMDBTransaction> LMDB::transaction(bool readonly) const
     {
-        auto instance = LMDB::get_instance(id());
+        auto instance = LMDB::instance(id());
 
         return std::make_unique<LMDBTransaction>(instance, readonly);
     }
@@ -592,7 +584,7 @@ namespace Database
         return {MAKE_ERROR_MSG(result, MDB_STR_ERR(result)), dbi_flags};
     }
 
-    std::string LMDBDatabase::id() const
+    crypto_hash_t LMDBDatabase::id() const
     {
         return m_id;
     }

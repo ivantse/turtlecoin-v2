@@ -5,6 +5,7 @@
 #ifndef TURTLECOIN_THREAD_SAFE_MAP_H
 #define TURTLECOIN_THREAD_SAFE_MAP_H
 
+#include <functional>
 #include <map>
 #include <shared_mutex>
 #include <thread>

@@ -174,6 +174,16 @@ namespace Configuration
     namespace Consensus
     {
         /**
+         * The amount required to propose a candidate node in atomic units
+         */
+        const uint64_t REQUIRED_CANDIDACY_AMOUNT = 1'000'00;
+
+        /**
+         * The minimum amount required to stake (vote) for a candidate node in atomic units
+         */
+        const uint64_t MINIMUM_STAKE_AMOUNT = 1'00;
+
+        /**
          * This defines the target number of electors we will select for each round as
          * producers and validators
          */

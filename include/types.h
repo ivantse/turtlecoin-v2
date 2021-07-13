@@ -13,7 +13,7 @@
 // Network Transactions
 #include "blockchain/transaction_genesis.h"
 #include "blockchain/transaction_stake_refund.h"
-#include "blockchain/transaction_staker_reward.h"
+#include "blockchain/transaction_staker.h"
 
 // User Generated Transactions
 #include "blockchain/transaction_normal.h"
@@ -29,7 +29,6 @@
 // Staking Types
 #include "staking/candidate.h"
 #include "staking/stake.h"
-#include "staking/staker.h"
 
 #define USEVARIANT(id, obj) using id = std::decay_t<decltype(obj)>
 #define VARIANTC(left, right) std::is_same_v<left, right>
@@ -45,7 +44,7 @@ namespace Types
     {
         typedef std::variant<
             genesis_transaction_t,
-            staker_reward_transaction_t,
+            staker_transaction_t,
             committed_normal_transaction_t,
             committed_recall_stake_transaction_t,
             committed_stake_transaction_t,

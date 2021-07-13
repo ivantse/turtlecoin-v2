@@ -4,13 +4,15 @@
 
 #include "blockchain_storage.h"
 
-static std::shared_ptr<Core::BlockchainStorage> blockchain_storage_instance;
+static ThreadSafeMap<crypto_hash_t, std::shared_ptr<Core::BlockchainStorage>> instances;
 
 namespace Core
 {
     BlockchainStorage::BlockchainStorage(const std::string &db_path)
     {
-        m_db_env = Database::LMDB::getInstance(db_path, 0, 0600, 16, 8);
+        m_id = Crypto::Hashing::sha3(db_path.data(), db_path.size());
+
+        m_db_env = Database::LMDB::instance(db_path, 0, 0600, 16, 8);
 
         m_blocks = m_db_env->open_database("blocks");
 
@@ -23,18 +25,14 @@ namespace Core
         m_key_images = m_db_env->open_database("key_images");
 
         m_transaction_outputs = m_db_env->open_database("transaction_outputs");
-
-        m_transaction_block_hashes = m_db_env->open_database("transaction_block_hashes");
     }
 
-    std::shared_ptr<BlockchainStorage> BlockchainStorage::getInstance(const std::string &db_path)
+    BlockchainStorage::~BlockchainStorage()
     {
-        if (!blockchain_storage_instance)
+        if (instances.contains(m_id))
         {
-            blockchain_storage_instance = std::make_shared<BlockchainStorage>(db_path);
+            instances.erase(m_id);
         }
-
-        return blockchain_storage_instance;
     }
 
     bool BlockchainStorage::block_exists(const crypto_hash_t &block_hash) const
@@ -45,6 +43,164 @@ namespace Core
     bool BlockchainStorage::block_exists(const uint64_t &block_index) const
     {
         return m_block_indexes->exists(block_index);
+    }
+
+    Error BlockchainStorage::del_block(const uint64_t &block_index)
+    {
+        auto [block_error, block, transactions] = get_block(block_index);
+
+        if (block_error)
+        {
+            return block_error;
+        }
+
+    try_again:
+        auto txn = m_blocks->transaction();
+
+        for (const auto &transaction : transactions)
+        {
+            auto error = del_transaction(txn, transaction);
+
+            MDB_CHECK_TXN_EXPAND(error, m_db_env, txn, try_again);
+
+            if (error)
+            {
+                return error;
+            }
+        }
+
+        // delete block timestamp
+        {
+            txn->set_database(m_block_timestamps);
+
+            auto error = txn->del(block.timestamp, block.hash());
+
+            MDB_CHECK_TXN_EXPAND(error, m_db_env, txn, try_again);
+
+            if (error)
+            {
+                return error;
+            }
+        }
+
+        // delete block index
+        {
+            txn->set_database(m_block_indexes);
+
+            auto error = txn->del(block.block_index);
+
+            MDB_CHECK_TXN_EXPAND(error, m_db_env, txn, try_again);
+
+            if (error)
+            {
+                return error;
+            }
+        }
+
+        // delete block
+        {
+            txn->set_database(m_blocks);
+
+            auto error = txn->del(block.hash());
+
+            MDB_CHECK_TXN_EXPAND(error, m_db_env, txn, try_again);
+
+            if (error)
+            {
+                return error;
+            }
+        }
+
+        auto error = txn->commit();
+
+        MDB_CHECK_TXN_EXPAND(error, m_db_env, txn, try_again);
+
+        return error;
+    }
+
+    Error BlockchainStorage::del_key_image(
+        std::unique_ptr<Database::LMDBTransaction> &db_tx,
+        const crypto_key_image_t &key_image)
+    {
+        db_tx->set_database(m_key_images);
+
+        return db_tx->del(key_image);
+    }
+
+    Error BlockchainStorage::del_transaction(
+        std::unique_ptr<Database::LMDBTransaction> &db_tx,
+        const transaction_t &transaction)
+    {
+        return std::visit(
+            [&](auto &&tx)
+            {
+                USEVARIANT(T, tx);
+
+                if COMMITED_USER_TX_VARIANT (T)
+                {
+                    // delete the key images
+                    for (const auto &key_image : tx.key_images)
+                    {
+                        auto error = del_key_image(db_tx, key_image);
+
+                        if (error)
+                        {
+                            return error;
+                        }
+                    }
+
+                    // delete the outputs
+                    for (const auto &output : tx.outputs)
+                    {
+                        auto error = del_transaction_output(db_tx, output.hash());
+
+                        if (error)
+                        {
+                            return error;
+                        }
+                    }
+                }
+                else if VARIANT (T, genesis_transaction_t)
+                {
+                    // delete the outputs
+                    for (const auto &output : tx.outputs)
+                    {
+                        auto error = del_transaction_output(db_tx, output.hash());
+
+                        if (error)
+                        {
+                            return error;
+                        }
+                    }
+                }
+                else if VARIANT (T, stake_refund_transaction_t)
+                {
+                    // delete the outputs
+                    for (const auto &output : tx.outputs)
+                    {
+                        auto error = del_transaction_output(db_tx, output.hash());
+
+                        if (error)
+                        {
+                            return error;
+                        }
+                    }
+                }
+
+                db_tx->set_database(m_transactions);
+
+                return db_tx->del(tx.hash());
+            },
+            transaction);
+    }
+
+    Error BlockchainStorage::del_transaction_output(
+        std::unique_ptr<Database::LMDBTransaction> &db_tx,
+        const crypto_hash_t &output_hash)
+    {
+        db_tx->set_database(m_transaction_outputs);
+
+        return db_tx->del(output_hash);
     }
 
     std::tuple<Error, block_t, std::vector<transaction_t>>
@@ -200,15 +356,9 @@ namespace Core
             return {MAKE_ERROR(DB_TRANSACTION_NOT_FOUND), {}, {}};
         }
 
-        // go get the block hash the transaction is contained within
-        const auto [txn_error, block_hash] = m_transaction_block_hashes->get<crypto_hash_t, crypto_hash_t>(txn_hash);
-
-        if (txn_error)
-        {
-            return {MAKE_ERROR(DB_BLOCK_NOT_FOUND), {}, {}};
-        }
-
         deserializer_t reader(txn_data);
+
+        const auto block_hash = reader.key<crypto_hash_t>();
 
         // figure out what type of transaction it is
         const auto type = reader.varint<uint64_t>(true);
@@ -218,8 +368,8 @@ namespace Core
         {
             case TransactionType::GENESIS:
                 return {MAKE_ERROR(SUCCESS), genesis_transaction_t(reader), block_hash};
-            case TransactionType::STAKER_REWARD:
-                return {MAKE_ERROR(SUCCESS), staker_reward_transaction_t(reader), block_hash};
+            case TransactionType::STAKER:
+                return {MAKE_ERROR(SUCCESS), staker_transaction_t(reader), block_hash};
             case TransactionType::NORMAL:
                 return {MAKE_ERROR(SUCCESS), committed_normal_transaction_t(reader), block_hash};
             case TransactionType::STAKE:
@@ -266,10 +416,26 @@ namespace Core
                 return {error, {}};
             }
 
-            results.push_back({output, unlock_block});
+            results.emplace_back(output, unlock_block);
         }
 
         return {MAKE_ERROR(SUCCESS), results};
+    }
+
+    std::shared_ptr<BlockchainStorage> BlockchainStorage::instance(const std::string &db_path)
+    {
+        const auto id = Crypto::Hashing::sha3(db_path.data(), db_path.size());
+
+        if (!instances.contains(id))
+        {
+            auto db = new BlockchainStorage(db_path);
+
+            auto ptr = std::shared_ptr<BlockchainStorage>(db);
+
+            instances.insert(id, ptr);
+        }
+
+        return instances.at(id);
     }
 
     bool BlockchainStorage::key_image_exists(const crypto_key_image_t &key_image) const
@@ -361,44 +527,26 @@ namespace Core
         // Push the block reward transaction into the database
         {
             auto [error, txn_hash] =
-                std::visit([this, &db_tx](auto &&arg) { return put_transaction(db_tx, arg); }, block.reward_tx);
+                std::visit([&](auto &&arg) { return put_transaction(db_tx, arg, block_hash); }, block.reward_tx);
 
             MDB_CHECK_TXN_EXPAND(error, m_db_env, db_tx, try_again);
 
             if (error)
             {
                 return error;
-            }
-
-            auto txn_error = put_transaction_block_hash(db_tx, txn_hash, block_hash);
-
-            MDB_CHECK_TXN_EXPAND(txn_error, m_db_env, db_tx, try_again);
-
-            if (txn_error)
-            {
-                return txn_error;
             }
         }
 
         // loop through the individual transactions in the block and push them into the database
         for (const auto &transaction : transactions)
         {
-            auto [error, txn_hash] = put_transaction(db_tx, transaction);
+            auto [error, txn_hash] = put_transaction(db_tx, transaction, block_hash);
 
             MDB_CHECK_TXN_EXPAND(error, m_db_env, db_tx, try_again);
 
             if (error)
             {
                 return error;
-            }
-
-            auto txn_error = put_transaction_block_hash(db_tx, txn_hash, block_hash);
-
-            MDB_CHECK_TXN_EXPAND(txn_error, m_db_env, db_tx, try_again);
-
-            if (txn_error)
-            {
-                return txn_error;
             }
         }
 
@@ -462,7 +610,8 @@ namespace Core
 
     std::tuple<Error, crypto_hash_t> BlockchainStorage::put_transaction(
         std::unique_ptr<Database::LMDBTransaction> &db_tx,
-        const transaction_t &transaction)
+        const transaction_t &transaction,
+        const crypto_hash_t &block_hash)
     {
         db_tx->set_database(m_transactions);
 
@@ -474,15 +623,21 @@ namespace Core
          */
         {
             auto error = std::visit(
-                [this, &db_tx, &txn_hash](auto &&arg)
+                [&](auto &&arg)
                 {
                     USEVARIANT(T, arg);
 
                     {
                         txn_hash = arg.hash();
 
+                        serializer_t writer;
+
+                        arg.serialize(writer);
+
+                        writer.key(block_hash);
+
                         // push the transaction itself into the database
-                        auto error = db_tx->put(txn_hash, arg);
+                        auto error = db_tx->put(txn_hash, writer);
 
                         if (error)
                         {
@@ -586,16 +741,6 @@ namespace Core
         return {MAKE_ERROR(SUCCESS), txn_hash};
     }
 
-    Error BlockchainStorage::put_transaction_block_hash(
-        std::unique_ptr<Database::LMDBTransaction> &db_tx,
-        const crypto_hash_t &txn_hash,
-        const crypto_hash_t &block_hash)
-    {
-        db_tx->set_database(m_transaction_block_hashes);
-
-        return db_tx->put(txn_hash, block_hash);
-    }
-
     Error BlockchainStorage::put_transaction_output(
         std::unique_ptr<Database::LMDBTransaction> &db_tx,
         const transaction_output_t &output,
@@ -606,10 +751,37 @@ namespace Core
         // we pack the unlock block on to the output for storage
         serializer_t writer;
 
-        output.serialize(writer);
-
         writer.varint(unlock_block);
 
+        output.serialize(writer);
+
         return db_tx->put(output.hash(), writer);
+    }
+
+    Error BlockchainStorage::rewind(const uint64_t &block_index)
+    {
+        if (!block_exists(block_index))
+        {
+            return MAKE_ERROR(DB_BLOCK_NOT_FOUND);
+        }
+
+        const auto block_count = get_block_count();
+
+        for (uint64_t i = block_count; i > block_index; --i)
+        {
+            auto error = del_block(i);
+
+            if (error)
+            {
+                return error;
+            }
+        }
+
+        return MAKE_ERROR(SUCCESS);
+    }
+
+    bool BlockchainStorage::transaction_exists(const crypto_hash_t &txn_hash) const
+    {
+        return m_transactions->exists(txn_hash);
     }
 } // namespace Core

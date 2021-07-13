@@ -145,7 +145,7 @@ namespace Core
                         }
                     }
                 }
-                else if VARIANT (T, staker_reward_transaction_t)
+                else if VARIANT (T, staker_transaction_t)
                 {
                     // TODO: something
                 }
@@ -283,7 +283,7 @@ namespace Core
                         return MAKE_ERROR(TX_GENESIS_ALREADY_EXISTS);
                     }
                 }
-                else if VARIANT (T, staker_reward_transaction_t)
+                else if VARIANT (T, staker_transaction_t)
                 {
                     // TODO: do something
                 }

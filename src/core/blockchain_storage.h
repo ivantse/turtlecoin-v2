@@ -14,7 +14,7 @@ namespace Core
 {
     class BlockchainStorage
     {
-      public:
+      protected:
         /**
          * Create new instance of the blockchain storage in the specified path
          *
@@ -22,13 +22,8 @@ namespace Core
          */
         BlockchainStorage(const std::string &db_path);
 
-        /**
-         * Retrieves a singleton instance of the class
-         *
-         * @param db_path
-         * @return
-         */
-        static std::shared_ptr<BlockchainStorage> getInstance(const std::string &db_path);
+      public:
+        ~BlockchainStorage();
 
         /**
          * Checks whether the block with the given hash exists in the database
@@ -144,6 +139,14 @@ namespace Core
             get_transaction_output(const std::vector<crypto_hash_t> &output_hashes) const;
 
         /**
+         * Retrieves a singleton instance of the class
+         *
+         * @param db_path
+         * @return
+         */
+        static std::shared_ptr<BlockchainStorage> instance(const std::string &db_path);
+
+        /**
          * Checks if the specified key image exists in the database
          *
          * @param key_image
@@ -185,7 +188,58 @@ namespace Core
          */
         Error put_block(const block_t &block, const std::vector<transaction_t> &transactions);
 
+        /**
+         * Rewinds the database to the given block index
+         *
+         * @param block_index
+         * @return
+         */
+        Error rewind(const uint64_t &block_index);
+
+        /**
+         * Returns whether a transaction exists in the database
+         *
+         * @param txn_hash
+         * @return
+         */
+        [[nodiscard]] bool transaction_exists(const crypto_hash_t &txn_hash) const;
+
       private:
+        /**
+         * Delete a block and it's transactions from the database
+         *
+         * @param block_index
+         * @return
+         */
+        Error del_block(const uint64_t &block_index);
+
+        /**
+         * Delete a key image from the database
+         * @param db_tx
+         * @param key_image
+         * @return
+         */
+        Error del_key_image(std::unique_ptr<Database::LMDBTransaction> &db_tx, const crypto_key_image_t &key_image);
+
+        /**
+         * Delete a transaction from the database
+         *
+         * @param db_tx
+         * @param transaction
+         * @return
+         */
+        Error del_transaction(std::unique_ptr<Database::LMDBTransaction> &db_tx, const transaction_t &transaction);
+
+        /**
+         * Delete a transaction output from the database
+         *
+         * @param db_tx
+         * @param output_hash
+         * @return
+         */
+        Error
+            del_transaction_output(std::unique_ptr<Database::LMDBTransaction> &db_tx, const crypto_hash_t &output_hash);
+
         /**
          * Saves the specified key image to the database
          *
@@ -200,22 +254,12 @@ namespace Core
          *
          * @param db_tx
          * @param transaction
-         * @return
-         */
-        std::tuple<Error, crypto_hash_t>
-            put_transaction(std::unique_ptr<Database::LMDBTransaction> &db_tx, const transaction_t &transaction);
-
-        /**
-         * Saves the specified block hash for the specified transaction hash
-         *
-         * @param db_tx
-         * @param txn_hash
          * @param block_hash
          * @return
          */
-        Error put_transaction_block_hash(
+        std::tuple<Error, crypto_hash_t> put_transaction(
             std::unique_ptr<Database::LMDBTransaction> &db_tx,
-            const crypto_hash_t &txn_hash,
+            const transaction_t &transaction,
             const crypto_hash_t &block_hash);
 
         /**
@@ -234,7 +278,9 @@ namespace Core
         std::shared_ptr<Database::LMDB> m_db_env;
 
         std::shared_ptr<Database::LMDBDatabase> m_blocks, m_block_indexes, m_block_timestamps, m_transactions,
-            m_key_images, m_transaction_block_hashes, m_transaction_outputs;
+            m_key_images, m_transaction_outputs;
+
+        crypto_hash_t m_id;
 
         std::mutex write_mutex;
     };

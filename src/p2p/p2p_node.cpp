@@ -20,7 +20,7 @@ namespace P2P
         const crypto_hash_t &network_id):
         m_running(false), m_logger(logger), m_seed_mode(seed_mode), m_network_id(network_id)
     {
-        m_peer_db = std::make_shared<PeerDB>(logger, path);
+        m_peer_db = PeerDB::instance(logger, path);
 
         m_peer_db->prune();
 

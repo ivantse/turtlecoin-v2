@@ -77,7 +77,7 @@ namespace Types::Blockchain
 
         [[nodiscard]] Error check_construction() const override
         {
-            if (version != 1)
+            if (version != 1 & version != 2)
             {
                 return MAKE_ERROR(TX_INVALID_VERSION);
             }
@@ -317,7 +317,7 @@ namespace Types::Blockchain
 
         [[nodiscard]] Error check_construction() const override
         {
-            if (version != 1)
+            if (version != 1 && version != 2)
             {
                 return MAKE_ERROR(TX_INVALID_VERSION);
             }
@@ -600,6 +600,8 @@ namespace Types::Blockchain
             tx.outputs = outputs;
 
             tx.staker_id = staker_id;
+
+            tx.candidate_public_key = candidate_public_key;
 
             tx.stake_amount = stake_amount;
 

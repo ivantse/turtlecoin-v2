@@ -20,7 +20,7 @@ namespace BaseTypes
     enum TransactionType
     {
         GENESIS,
-        STAKER_REWARD,
+        STAKER,
         NORMAL,
         STAKE,
         RECALL_STAKE,

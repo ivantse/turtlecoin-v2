@@ -11,11 +11,15 @@
 static const auto PEER_ID_IDENTIFIER =
     crypto_hash_t("5440dd9b6683e3b2b0805eec3514ff3e23b7edea1bf29b434cd7a8447687650d");
 
+static ThreadSafeMap<crypto_hash_t, std::shared_ptr<P2P::PeerDB>> instances;
+
 namespace P2P
 {
     PeerDB::PeerDB(logger &logger, const std::string &path): m_logger(logger)
     {
-        m_env = Database::LMDB::getInstance(path);
+        m_id = Crypto::Hashing::sha3(path.data(), path.size());
+
+        m_env = Database::LMDB::instance(path);
 
         m_database = m_env->open_database("peerlist");
 
@@ -39,6 +43,14 @@ namespace P2P
         }
 
         info->put(PEER_ID_IDENTIFIER, m_peer_id);
+    }
+
+    PeerDB::~PeerDB()
+    {
+        if (instances.contains(m_id))
+        {
+            instances.erase(m_id);
+        }
     }
 
     Error PeerDB::add(const network_peer_t &entry)
@@ -99,6 +111,22 @@ namespace P2P
         std::scoped_lock lock(m_mutex);
 
         return m_database->get<network_peer_t>(peer_id);
+    }
+
+    std::shared_ptr<PeerDB> PeerDB::instance(logger &logger, const std::string &path)
+    {
+        const auto id = Crypto::Hashing::sha3(path.data(), path.size());
+
+        if (!instances.contains(id))
+        {
+            auto db = new PeerDB(logger, path);
+
+            auto ptr = std::shared_ptr<PeerDB>(db);
+
+            instances.insert(id, ptr);
+        }
+
+        return instances.at(id);
     }
 
     crypto_hash_t PeerDB::peer_id() const

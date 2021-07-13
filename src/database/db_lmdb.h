@@ -12,6 +12,7 @@
 #include <memory>
 #include <mutex>
 #include <serializer.h>
+#include <tools/thread_safe_map.h>
 #include <tuple>
 
 #define MDB_STR_ERR(variable) std::string(mdb_strerror(variable))
@@ -98,7 +99,7 @@ namespace Database
          * @param id
          * @return
          */
-        std::shared_ptr<LMDBDatabase> get_database(const std::string &id);
+        std::shared_ptr<LMDBDatabase> get_database(const crypto_hash_t &id);
 
         /**
          * Retrieves the LMDB environment flags
@@ -106,31 +107,6 @@ namespace Database
          * @return
          */
         std::tuple<Error, unsigned int> get_flags() const;
-
-        /**
-         * Retrieves an existing instance of an environment by its ID
-         *
-         * @param id
-         * @return
-         */
-        static std::shared_ptr<LMDB> get_instance(const std::string &id);
-
-        /**
-         * Opens a LMDB environment using the specified parameters
-         *
-         * @param path
-         * @param flags
-         * @param mode
-         * @param growth_factor in MB
-         * @param max_databases
-         * @return
-         */
-        static std::shared_ptr<LMDB> getInstance(
-            const std::string &path,
-            int flags = MDB_NOSUBDIR,
-            int mode = 0600,
-            size_t growth_factor = 8,
-            unsigned int max_databases = 8);
 
         /**
          * Retrieves the current environment growth factor (in MB)
@@ -144,7 +120,7 @@ namespace Database
          *
          * @return
          */
-        std::string id() const;
+        crypto_hash_t id() const;
 
         /**
          * Retrieves the LMDB environment information
@@ -152,6 +128,31 @@ namespace Database
          * @return
          */
         std::tuple<Error, MDB_envinfo> info() const;
+
+        /**
+         * Retrieves an existing instance of an environment by its ID
+         *
+         * @param id
+         * @return
+         */
+        static std::shared_ptr<LMDB> instance(const crypto_hash_t &id);
+
+        /**
+         * Opens a LMDB environment using the specified parameters
+         *
+         * @param path
+         * @param flags
+         * @param mode
+         * @param growth_factor in MB
+         * @param max_databases
+         * @return
+         */
+        static std::shared_ptr<LMDB> instance(
+            const std::string &path,
+            int flags = MDB_NOSUBDIR,
+            int mode = 0600,
+            size_t growth_factor = 8,
+            unsigned int max_databases = 8);
 
         /**
          * Retrieves the maximum byte size of a key in the LMDB environment
@@ -241,7 +242,7 @@ namespace Database
          */
         std::tuple<Error, size_t> memory_to_pages(size_t memory) const;
 
-        std::string m_id;
+        crypto_hash_t m_id;
 
         size_t m_growth_factor;
 
@@ -249,7 +250,7 @@ namespace Database
 
         mutable std::mutex m_mutex, m_txn_mutex;
 
-        std::map<std::string, std::shared_ptr<LMDBDatabase>> m_databases;
+        ThreadSafeMap<crypto_hash_t, std::shared_ptr<LMDBDatabase>> m_databases;
 
         size_t m_open_txns;
     };
@@ -595,7 +596,7 @@ namespace Database
          *
          * @return
          */
-        std::string id() const;
+        crypto_hash_t id() const;
 
         /**
          * Lists all keys in the database
@@ -728,7 +729,7 @@ namespace Database
         std::unique_ptr<LMDBTransaction> transaction(bool readonly = false);
 
       private:
-        std::string m_id;
+        crypto_hash_t m_id;
 
         std::shared_ptr<LMDB> m_env;
 

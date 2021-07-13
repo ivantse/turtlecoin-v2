@@ -19,12 +19,10 @@ namespace Types::Staking
             const crypto_public_key_t &public_signing_key,
             const crypto_public_key_t &public_view_key,
             const crypto_public_key_t &public_spend_key,
-            const crypto_hash_t &staking_hash,
             uint64_t initial_stake = 0):
             public_signing_key(public_signing_key),
             public_view_key(public_view_key),
             public_spend_key(public_spend_key),
-            staking_hash(staking_hash),
             initial_stake(initial_stake)
         {
         }
@@ -62,8 +60,6 @@ namespace Types::Staking
 
             public_spend_key = reader.key<crypto_public_key_t>();
 
-            staking_hash = reader.key<crypto_hash_t>();
-
             initial_stake = reader.varint<uint64_t>();
 
             block_production_assigned = reader.varint<uint64_t>();
@@ -86,8 +82,6 @@ namespace Types::Staking
             LOAD_KEY_FROM_JSON(public_view_key);
 
             LOAD_KEY_FROM_JSON(public_spend_key);
-
-            LOAD_KEY_FROM_JSON(staking_hash);
 
             LOAD_U64_FROM_JSON(initial_stake);
 
@@ -121,8 +115,6 @@ namespace Types::Staking
 
             public_spend_key.serialize(writer);
 
-            staking_hash.serialize(writer);
-
             writer.varint(initial_stake);
 
             writer.varint(block_production_assigned);
@@ -134,7 +126,7 @@ namespace Types::Staking
             writer.varint(blocks_validated);
         }
 
-        std::vector<uint8_t> serialize() const override
+        [[nodiscard]] std::vector<uint8_t> serialize() const override
         {
             serializer_t writer;
 
@@ -143,7 +135,7 @@ namespace Types::Staking
             return writer.vector();
         }
 
-        size_t size() const override
+        [[nodiscard]] size_t size() const override
         {
             return serialize().size();
         }
@@ -159,8 +151,6 @@ namespace Types::Staking
                 KEY_TO_JSON(public_view_key);
 
                 KEY_TO_JSON(public_spend_key);
-
-                KEY_TO_JSON(staking_hash);
 
                 U64_TO_JSON(initial_stake);
 
@@ -187,14 +177,12 @@ namespace Types::Staking
             return 0;
         }
 
-        uint64_t version() const
+        [[nodiscard]] uint64_t version() const
         {
             return record_version;
         }
 
         crypto_public_key_t public_signing_key, public_view_key, public_spend_key;
-
-        crypto_hash_t staking_hash;
 
         uint64_t initial_stake = 0, blocks_produced = 0, blocks_validated = 0, block_production_assigned = 0,
                  block_validation_assigned = 0;
@@ -212,7 +200,6 @@ namespace std
     inline ostream &operator<<(ostream &os, const Types::Staking::candidate_node_t &value)
     {
         os << "Candidate Node [v" << value.version() << "]" << std::endl
-           << "\tStaking Hash: " << value.staking_hash << std::endl
            << "\tPublic Signing Key: " << value.public_signing_key << std::endl
            << "\tPublic View Key: " << value.public_view_key << std::endl
            << "\tPublic Spend Key: " << value.public_spend_key << std::endl

@@ -16,8 +16,17 @@ namespace P2P
 {
     class PeerDB
     {
-      public:
+      protected:
+        /**
+         * Creates a new instance of the class
+         *
+         * @param logger
+         * @param path
+         */
         PeerDB(logger &logger, const std::string &path);
+
+      public:
+        ~PeerDB();
 
         /**
          * Adds the peer entry to the database
@@ -65,6 +74,15 @@ namespace P2P
          * @return
          */
         std::tuple<Error, network_peer_t> get(const crypto_hash_t &peer_id);
+
+        /**
+         * Retrieves a singleton instance of the class
+         *
+         * @param logger
+         * @param path
+         * @return
+         */
+        static std::shared_ptr<PeerDB> instance(logger &logger, const std::string &path);
 
         /**
          * Returns our peer ID
@@ -116,7 +134,7 @@ namespace P2P
 
         mutable std::mutex m_mutex;
 
-        crypto_hash_t m_peer_id;
+        crypto_hash_t m_id, m_peer_id;
 
         logger m_logger;
     };

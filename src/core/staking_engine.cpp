@@ -4,11 +4,15 @@
 
 #include "staking_engine.h"
 
+static ThreadSafeMap<crypto_hash_t, std::shared_ptr<Core::StakingEngine>> instances;
+
 namespace Core
 {
     StakingEngine::StakingEngine(const std::string &db_path)
     {
-        m_db_env = Database::LMDB::getInstance(db_path);
+        m_id = Crypto::Hashing::sha3(db_path.data(), db_path.size());
+
+        m_db_env = Database::LMDB::instance(db_path);
 
         m_db_candidates = m_db_env->open_database("candidates");
 
@@ -17,18 +21,31 @@ namespace Core
         m_db_stakes = m_db_env->open_database("stakes", MDB_CREATE | MDB_DUPSORT);
     }
 
+    StakingEngine::~StakingEngine()
+    {
+        if (instances.contains(m_id))
+        {
+            instances.erase(m_id);
+        }
+    }
+
     Error StakingEngine::add_candidate(const candidate_node_t &candidate)
     {
-        std::scoped_lock lock(candidates_mutex);
+        std::scoped_lock lock(write_mutex);
 
         return m_db_candidates->put(candidate.public_signing_key, candidate);
     }
 
     Error StakingEngine::add_staker(const staker_t &staker)
     {
-        std::scoped_lock lock(stakers_mutex);
+        std::scoped_lock lock(write_mutex);
 
         return m_db_stakers->put(staker.id(), staker);
+    }
+
+    bool StakingEngine::candidate_exists(const crypto_public_key_t &candidate_key) const
+    {
+        return m_db_candidates->exists(candidate_key);
     }
 
     std::tuple<crypto_public_key_t, uint256_t, bool>
@@ -60,7 +77,7 @@ namespace Core
 
     Error StakingEngine::delete_candidate(const crypto_public_key_t &candidate_key)
     {
-        std::scoped_lock lock(candidates_mutex);
+        std::scoped_lock lock(write_mutex);
 
         const auto [error, candidate] = get_candidate(candidate_key);
 
@@ -74,7 +91,7 @@ namespace Core
 
     Error StakingEngine::delete_staker(const crypto_hash_t &staker_id)
     {
-        std::scoped_lock lock(stakers_mutex);
+        std::scoped_lock lock(write_mutex);
 
         const auto [error, staker] = get_staker(staker_id);
 
@@ -86,7 +103,7 @@ namespace Core
         return m_db_stakers->del(staker_id);
     }
 
-    std::tuple<Error, candidate_node_t> StakingEngine::get_candidate(const crypto_public_key_t &candidate_key)
+    std::tuple<Error, candidate_node_t> StakingEngine::get_candidate(const crypto_public_key_t &candidate_key) const
     {
         const auto [error, candidate] = m_db_candidates->get<candidate_node_t>(candidate_key);
 
@@ -98,7 +115,7 @@ namespace Core
         return {error, candidate};
     }
 
-    std::vector<stake_t> StakingEngine::get_candidate_stakes(const crypto_public_key_t &candidate_key)
+    std::vector<stake_t> StakingEngine::get_candidate_stakes(const crypto_public_key_t &candidate_key) const
     {
         auto txn = m_db_stakes->transaction(true);
 
@@ -109,7 +126,7 @@ namespace Core
         return stakes;
     }
 
-    uint64_t StakingEngine::get_candidate_votes(const crypto_public_key_t &candidate_key)
+    uint64_t StakingEngine::get_candidate_votes(const crypto_public_key_t &candidate_key) const
     {
         uint64_t votes = 0;
 
@@ -130,17 +147,12 @@ namespace Core
         return votes;
     }
 
-    std::vector<crypto_public_key_t> StakingEngine::get_candidates()
+    std::vector<crypto_public_key_t> StakingEngine::get_candidates() const
     {
         return m_db_candidates->list_keys<crypto_public_key_t>();
     }
 
-    std::vector<crypto_hash_t> StakingEngine::get_stakers()
-    {
-        return m_db_stakers->list_keys<crypto_hash_t>();
-    }
-
-    std::tuple<Error, staker_t> StakingEngine::get_staker(const crypto_hash_t &staker_key)
+    std::tuple<Error, staker_t> StakingEngine::get_staker(const crypto_hash_t &staker_key) const
     {
         const auto [error, staker] = m_db_stakers->get<staker_t>(staker_key);
 
@@ -154,7 +166,7 @@ namespace Core
 
     uint64_t StakingEngine::get_staker_candidate_votes(
         const crypto_hash_t &staker_id,
-        const crypto_public_key_t &candidate_key)
+        const crypto_public_key_t &candidate_key) const
     {
         uint64_t votes = 0;
 
@@ -173,7 +185,13 @@ namespace Core
         return votes;
     }
 
-    std::map<crypto_public_key_t, std::vector<stake_t>> StakingEngine::get_staker_stakes(const crypto_hash_t &staker_id)
+    std::vector<crypto_hash_t> StakingEngine::get_stakers() const
+    {
+        return m_db_stakers->list_keys<crypto_hash_t>();
+    }
+
+    std::map<crypto_public_key_t, std::vector<stake_t>>
+        StakingEngine::get_staker_stakes(const crypto_hash_t &staker_id) const
     {
         std::map<crypto_public_key_t, std::vector<stake_t>> results;
 
@@ -207,16 +225,31 @@ namespace Core
         return results;
     }
 
+    std::shared_ptr<StakingEngine> StakingEngine::instance(const std::string &db_path)
+    {
+        const auto id = Crypto::Hashing::sha3(db_path.data(), db_path.size());
+
+        if (!instances.contains(id))
+        {
+            auto db = new StakingEngine(db_path);
+
+            auto ptr = std::shared_ptr<StakingEngine>(db);
+
+            instances.insert(id, ptr);
+        }
+
+        return instances.at(id);
+    }
+
     Error StakingEngine::recall_stake(
         const staker_t &staker,
-        const crypto_hash_t &stake_txn,
         const crypto_public_key_t &candidate_key,
         const uint64_t &stake)
     {
-        std::scoped_lock lock(stakes_mutex);
+        std::scoped_lock lock(write_mutex);
 
         // create the stake record
-        const auto stake_record = stake_t(staker.id(), stake_txn, stake);
+        const auto stake_record = stake_t(staker.id(), stake);
 
         // now delete it
         return m_db_stakes->del(candidate_key, stake_record);
@@ -224,11 +257,10 @@ namespace Core
 
     Error StakingEngine::record_stake(
         const staker_t &staker,
-        const crypto_hash_t &stake_txn,
         const crypto_public_key_t &candidate_key,
         const uint64_t &stake)
     {
-        std::scoped_lock lock(stakes_mutex);
+        std::scoped_lock lock(write_mutex);
 
         {
             // check to see if the candidate exists
@@ -252,7 +284,7 @@ namespace Core
         }
 
         // create the stake record
-        const auto stake_record = stake_t(staker.id(), stake_txn, stake);
+        const auto stake_record = stake_t(staker.id(), stake);
 
         {
             const auto [error, value] = get_staker(staker.id());
@@ -268,7 +300,7 @@ namespace Core
     }
 
     std::tuple<std::vector<crypto_public_key_t>, std::vector<crypto_public_key_t>>
-        StakingEngine::run_election(const std::vector<crypto_hash_t> &last_round_blocks, size_t maximum_keys)
+        StakingEngine::run_election(const std::vector<crypto_hash_t> &last_round_blocks, size_t maximum_keys) const
     {
         // Fetch all of the candidates public keys so we can do some electing
         const auto candidates = get_candidates();

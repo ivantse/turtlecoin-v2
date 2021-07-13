@@ -102,11 +102,11 @@ int main(int argc, char **argv)
         check_binary_json_serialization(structure, "block_t[genesis]");
     }
 
-    // Block w/ Staker Reward
+    // Block w/ Staker
     {
         auto structure = Blockchain::block_t();
 
-        structure.reward_tx = Blockchain::staker_reward_transaction_t();
+        structure.reward_tx = Blockchain::staker_transaction_t();
 
         check_binary_json_serialization(structure, "block_t[staker_reward]");
     }
@@ -118,11 +118,11 @@ int main(int argc, char **argv)
         check_binary_json_serialization(structure, "genesis_transaction_t");
     }
 
-    // Staker Reward Transaction
+    // Staker Transaction
     {
-        auto structure = Blockchain::staker_reward_transaction_t();
+        auto structure = Blockchain::staker_transaction_t();
 
-        check_binary_json_serialization(structure, "staker_reward_transaction_t");
+        check_binary_json_serialization(structure, "staker_transaction_t");
     }
 
     // Uncommitted Normal Transaction
@@ -193,13 +193,6 @@ int main(int argc, char **argv)
         auto structure = Staking::candidate_node_t();
 
         check_binary_json_serialization(structure, "candidate_node_t");
-    }
-
-    // Staker
-    {
-        auto structure = Staking::staker_t();
-
-        check_binary_json_serialization(structure, "staker_t");
     }
 
     // Stake

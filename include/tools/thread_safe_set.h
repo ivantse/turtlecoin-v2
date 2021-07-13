@@ -5,6 +5,7 @@
 #ifndef TURTLECOIN_THREAD_SAFE_SET_H
 #define TURTLECOIN_THREAD_SAFE_SET_H
 
+#include <functional>
 #include <set>
 #include <shared_mutex>
 #include <thread>

@@ -13,8 +13,11 @@ namespace Types::Staking
     {
         stake_t() {}
 
-        stake_t(const crypto_hash_t &staker_id, const crypto_hash_t &stake_txn, uint64_t stake):
-            staker_id(staker_id), stake_txn(stake_txn), stake(stake)
+        stake_t(
+            const crypto_public_key_t &public_view_key,
+            const crypto_public_key_t &public_spend_key,
+            uint64_t stake):
+            public_view_key(public_view_key), public_spend_key(public_spend_key), stake(stake)
         {
         }
 
@@ -45,9 +48,11 @@ namespace Types::Staking
         {
             record_version = reader.varint<uint64_t>();
 
-            staker_id = reader.key<crypto_hash_t>();
+            candidate_public_key = reader.key<crypto_public_key_t>();
 
-            stake_txn = reader.key<crypto_hash_t>();
+            public_view_key = reader.key<crypto_public_key_t>();
+
+            public_spend_key = reader.key<crypto_public_key_t>();
 
             stake = reader.varint<uint64_t>();
         }
@@ -58,9 +63,11 @@ namespace Types::Staking
 
             LOAD_U64_FROM_JSON(record_version);
 
-            LOAD_KEY_FROM_JSON(staker_id);
+            LOAD_KEY_FROM_JSON(candidate_public_key);
 
-            LOAD_KEY_FROM_JSON(stake_txn);
+            LOAD_KEY_FROM_JSON(public_view_key);
+
+            LOAD_KEY_FROM_JSON(public_spend_key);
 
             LOAD_U64_FROM_JSON(stake);
         }
@@ -76,18 +83,31 @@ namespace Types::Staking
             return Crypto::Hashing::sha3(data.data(), data.size());
         }
 
+        [[nodiscard]] crypto_hash_t id() const
+        {
+            serializer_t writer;
+
+            public_view_key.serialize(writer);
+
+            public_spend_key.serialize(writer);
+
+            return Crypto::Hashing::sha3(writer.data(), writer.size());
+        }
+
         void serialize(serializer_t &writer) const override
         {
             writer.varint(record_version);
 
-            staker_id.serialize(writer);
+            candidate_public_key.serialize(writer);
 
-            stake_txn.serialize(writer);
+            public_view_key.serialize(writer);
+
+            public_spend_key.serialize(writer);
 
             writer.varint(stake);
         }
 
-        std::vector<uint8_t> serialize() const override
+        [[nodiscard]] std::vector<uint8_t> serialize() const override
         {
             serializer_t writer;
 
@@ -96,7 +116,7 @@ namespace Types::Staking
             return writer.vector();
         }
 
-        size_t size() const override
+        [[nodiscard]] size_t size() const override
         {
             return serialize().size();
         }
@@ -107,9 +127,11 @@ namespace Types::Staking
             {
                 U64_TO_JSON(record_version);
 
-                KEY_TO_JSON(staker_id);
+                KEY_TO_JSON(candidate_public_key);
 
-                KEY_TO_JSON(stake_txn);
+                KEY_TO_JSON(public_view_key);
+
+                KEY_TO_JSON(public_spend_key);
 
                 U64_TO_JSON(stake);
             }
@@ -128,13 +150,13 @@ namespace Types::Staking
             return 0;
         }
 
-        uint64_t version() const
+        [[nodiscard]] uint64_t version() const
         {
             return record_version;
         }
 
-        crypto_hash_t staker_id;
-        crypto_hash_t stake_txn;
+        crypto_public_key_t candidate_public_key, public_spend_key, public_view_key;
+
         uint64_t stake = 0;
 
       private:
@@ -150,8 +172,10 @@ namespace std
     inline ostream &operator<<(ostream &os, const Types::Staking::stake_t &value)
     {
         os << "Stake [v" << value.version() << "]" << std::endl
-           << "Staker ID: " << value.staker_id << std::endl
-           << "Stake Txn: " << value.stake_txn << std::endl
+           << "Staker ID: " << value.id() << std::endl
+           << "Candidate Public Key: " << value.candidate_public_key << std::endl
+           << "Staker Public View Key: " << value.public_view_key << std::endl
+           << "Staker Public Spend Key: " << value.public_spend_key << std::endl
            << "Stake Amount: " << value.stake << std::endl;
 
         return os;

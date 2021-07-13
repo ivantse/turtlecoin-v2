@@ -7,14 +7,14 @@
 
 #include "base_types.h"
 #include "transaction_genesis.h"
-#include "transaction_staker_reward.h"
+#include "transaction_staker.h"
 
 #include <map>
 #include <signature.h>
 
 namespace Types::Blockchain
 {
-    typedef std::variant<Types::Blockchain::genesis_transaction_t, Types::Blockchain::staker_reward_transaction_t>
+    typedef std::variant<Types::Blockchain::genesis_transaction_t, Types::Blockchain::staker_transaction_t>
         block_transaction_t;
 
     enum block_digest_mode_t
@@ -105,8 +105,8 @@ namespace Types::Blockchain
                     case BaseTypes::TransactionType::GENESIS:
                         reward_tx = genesis_transaction_t(reader);
                         break;
-                    case BaseTypes::TransactionType::STAKER_REWARD:
-                        reward_tx = staker_reward_transaction_t(reader);
+                    case BaseTypes::TransactionType::STAKER:
+                        reward_tx = staker_transaction_t(reader);
                         break;
                     default:
                         throw std::invalid_argument("Invalid reward_tx type");
@@ -179,8 +179,8 @@ namespace Types::Blockchain
                     case BaseTypes::TransactionType::GENESIS:
                         reward_tx = genesis_transaction_t(elem);
                         break;
-                    case BaseTypes::TransactionType::STAKER_REWARD:
-                        reward_tx = staker_reward_transaction_t(elem);
+                    case BaseTypes::TransactionType::STAKER:
+                        reward_tx = staker_transaction_t(elem);
                         break;
                     default:
                         throw std::invalid_argument("Invalid reward_tx type");
@@ -487,7 +487,7 @@ namespace Types::Blockchain
                         {
                             return !arg.outputs.empty();
                         }
-                        else if constexpr (std::is_same_v<T, Blockchain::staker_reward_transaction_t>)
+                        else if constexpr (std::is_same_v<T, Blockchain::staker_transaction_t>)
                         {
                             return !arg.staker_outputs.empty();
                         }
@@ -583,7 +583,7 @@ namespace Types::Blockchain
         crypto_hash_t previous_blockhash;
 
         // default to a staker reward transaction as there should only ever be one genesis transaction
-        Blockchain::block_transaction_t reward_tx = staker_reward_transaction_t();
+        Blockchain::block_transaction_t reward_tx = staker_transaction_t();
 
         /**
          * Transaction hashes must be properly ordered in a block using standard sorting
